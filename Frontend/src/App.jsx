@@ -3,7 +3,10 @@ import Navbar from "./components/Navbar";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import DashboardPage from "./pages/DashboardPage";
+import ProblemDetailPage from "./pages/ProblemDetailPage";
+import CreateProblemPage from "./pages/CreateProblemPage";
 import ProtectedRoute from "./components/ProtectedRoute";
+import AdminRoute from "./components/AdminRoute";
 
 export default function App() {
   return (
@@ -19,6 +22,22 @@ export default function App() {
             <ProtectedRoute>
               <DashboardPage />
             </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/problems/:id"
+          element={
+            <ProtectedRoute>
+              <ProblemDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/problems/create"
+          element={
+            <AdminRoute>
+              <CreateProblemPage />
+            </AdminRoute>
           }
         />
       </Routes>
