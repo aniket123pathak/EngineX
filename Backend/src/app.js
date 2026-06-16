@@ -23,4 +23,14 @@ app.get("/health", (req, res) => {
     res.status(200).json({ status: "healthy", timestamp: new Date().toISOString() });
 });
 
+// src/app.js (Add this after your middlewares)
+
+// --- Routes Import ---
+import userRouter from "./routes/user.route.js";
+
+// --- Routes Declaration ---
+// Prefix all user routes with an API version (v1). This is standard industry practice.
+// If you ever rebuild the API (v2), older apps using v1 won't instantly break.
+app.use("/api/v1/users", userRouter);
+
 export { app };
