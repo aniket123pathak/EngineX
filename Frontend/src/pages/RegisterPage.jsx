@@ -74,7 +74,7 @@ export default function RegisterPage() {
               minLength={3}
               value={form.username}
               onChange={handleChange}
-              placeholder="e.g. johndoe"
+              placeholder="e.g. tourist"
               className="w-full border-2 border-black bg-white px-4 py-2.5 text-sm text-black placeholder-gray-400 outline-none transition-shadow focus:shadow-[4px_4px_0_0_#000]"
             />
           </div>
