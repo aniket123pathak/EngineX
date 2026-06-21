@@ -29,11 +29,13 @@ app.get("/health", (req, res) => {
 
 import userRouter from "./routes/user.route.js";
 import problemRouter from "./routes/problem.route.js";
+import submissionRouter from "./routes/submission.route.js";
 
 // --- Routes Declaration ---
 // Prefix all user routes with an API version (v1). This is standard industry practice.
 // If you ever rebuild the API (v2), older apps using v1 won't instantly break.
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/problems", problemRouter);
+app.use("/api/v1/submissions", submissionRouter);
 
 export { app };

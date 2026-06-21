@@ -157,13 +157,16 @@ export default function ProblemDetailPage() {
         </div>
       )}
 
-      {/* ── Code Editor Placeholder ── */}
-      <div className="border-2 border-dashed border-gray-400 bg-gray-50 px-6 py-12 text-center">
-        <div className="mb-1 font-mono text-lg font-bold text-gray-400">
-          {"{ }"}
-        </div>
-        <p className="text-sm font-bold tracking-wide text-gray-400 uppercase">
-          Code Editor &amp; Submit Area Coming Soon
+      {/* ── Open Workspace ── */}
+      <div className="border-2 border-black bg-white px-6 py-8 text-center">
+        <Link
+          to={`/problems/${id}/solve`}
+          className="inline-block border-2 border-black bg-black px-8 py-3 text-sm font-black tracking-widest text-white uppercase transition-all hover:bg-white hover:text-black"
+        >
+          Open Workspace →
+        </Link>
+        <p className="mt-3 text-xs font-semibold tracking-wide text-gray-400 uppercase">
+          Launch the code editor &amp; submit your solution
         </p>
       </div>
     </div>

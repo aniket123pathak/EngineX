@@ -4,14 +4,10 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { Submission } from "../models/submission.model.js";
 import { Problem } from "../models/problem.model.js";
+import { evaluateSubmission } from "../utils/codeRunner.js"; // Import your new engine
 
 /**
- * WORKFLOW: SUBMIT CODE
- * 1. Extract problem ID, code, and language from the request.
- * 2. Verify the problem actually exists.
- * 3. Save the submission as PENDING.
- * 4. [TODO] Push to Message Queue (RabbitMQ/Redis).
- * 5. Return the submission ID to the frontend so it can start polling for updates.
+ * WORKFLOW: SUBMIT AND EVALUATE CODE (Synchronous V1)
  */
 export const submitCode = asyncHandler(async (req, res) => {
     const { problemId, code, language } = req.body;
@@ -20,31 +16,52 @@ export const submitCode = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Problem ID, code, and language are required");
     }
 
-    // Ensure the problem exists before accepting code for it
+    // 1. Verify the problem exists
     const problem = await Problem.findById(problemId);
     if (!problem) {
         throw new ApiError(404, "Problem not found");
     }
 
-    // Create the pending submission
+    // 2. Create the submission record in the database (Mark as PROCESSING)
     const submission = await Submission.create({
-        user: req.user._id, // verifyJWT guarantees this exists
+        user: req.user._id, 
         problem: problemId,
         code,
-        language
+        language,
+        status: "PROCESSING" // Since we aren't using queues yet, it processes immediately
     });
 
-    if (!submission) {
-        throw new ApiError(500, "Failed to record submission");
+    try {
+        // 3. WAKE UP THE DOCKER ENGINE
+        // The folder name on your hard drive must exactly match the problem's MongoDB _id
+        const problemFolder = problem._id.toString(); 
+        
+        // Run the code against the test cases
+        const evaluation = await evaluateSubmission(problemFolder, code);
+
+        if (evaluation.verdict === "SYSTEM_ERROR") {
+            console.log("HIDDEN ENGINE ERROR:", evaluation.message);
+        }
+
+        // 4. Update the database with the final verdict from Docker
+        submission.status = evaluation.verdict;
+        await submission.save();
+
+        // 5. Return the exact results to the React frontend
+        return res.status(200).json(
+            new ApiResponse(200, {
+                submissionId: submission._id,
+                verdict: evaluation.verdict,
+                testCasesPassed: evaluation.testCasesChecked,
+                details: evaluation.details // Sends back exactly what failed/passed
+            }, "Execution completed successfully")
+        );
+
+    } catch (error) {
+        // Fallback if Docker completely crashes or the hard drive fails
+        console.error("CRITICAL ENGINE FAILURE:", error);
+        submission.status = "SYSTEM_ERROR";
+        await submission.save();
+        throw new ApiError(500, "Internal Server Error during code execution");
     }
-
-    // TODO: In the next step, we will add the code here to push `submission._id` to a Redis Queue
-
-    // We only return the basic info. The frontend will use the `_id` to poll for the final verdict.
-    return res.status(201).json(
-        new ApiResponse(201, {
-            submissionId: submission._id,
-            status: submission.status
-        }, "Submission received and queued for processing")
-    );
 });

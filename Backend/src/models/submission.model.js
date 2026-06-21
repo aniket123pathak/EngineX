@@ -39,7 +39,8 @@ const submissionSchema = new Schema(
                 "TIME_LIMIT_EXCEEDED",  // Ran too long
                 "MEMORY_LIMIT_EXCEEDED",// Used too much RAM
                 "RUNTIME_ERROR",        // Crashed during execution (e.g., Division by Zero)
-                "COMPILATION_ERROR"     // Syntax error, failed to compile
+                "COMPILATION_ERROR",     // Syntax error, failed to compile
+                "SYSTEM_ERROR"
             ],
             default: "PENDING",
             index: true, // Optimizes querying "Show me all accepted submissions"

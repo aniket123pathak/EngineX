@@ -4,6 +4,7 @@ import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import DashboardPage from "./pages/DashboardPage";
 import ProblemDetailPage from "./pages/ProblemDetailPage";
+import SolveProblemPage from "./pages/SolveProblemPage";
 import CreateProblemPage from "./pages/CreateProblemPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
@@ -29,6 +30,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <ProblemDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/problems/:id/solve"
+          element={
+            <ProtectedRoute>
+              <SolveProblemPage />
             </ProtectedRoute>
           }
         />
