@@ -25,3 +25,12 @@ export const getProblemById = (id) => {
 export const createProblem = (payload) => {
   return axiosInstance.post("/problems/create", payload);
 };
+
+/**
+ * Delete a problem by ID (Admin only).
+ * @param {string} id
+ * @returns {Promise<import("axios").AxiosResponse>}
+ */
+export const deleteProblem = (id) => {
+  return axiosInstance.delete(`/problems/${id}`);
+};

@@ -3,6 +3,8 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { Problem } from "../models/problem.model.js";
+import fs from "fs";
+import path from "path";
 
 /**
  * WORKFLOW: CREATE PROBLEM (ADMIN ONLY)
@@ -13,59 +15,46 @@ import { Problem } from "../models/problem.model.js";
  * 5. Create the problem in the database, automatically linking the Admin as the author.
  */
 export const createProblem = asyncHandler(async (req, res) => {
-    const { 
-        title, 
-        description, 
-        difficulty, 
-        timeLimit, 
-        memoryLimit, 
-        testCases 
-    } = req.body;
+    const { title, description, difficulty, timeLimit, memoryLimit, testCases } = req.body;
 
-    // 1. Basic Field Validation
-    if (!title || !description || !difficulty) {
-        throw new ApiError(400, "Title, description, and difficulty are required fields");
+    if (!title || !description || !testCases || testCases.length === 0) {
+        throw new ApiError(400, "Title, description, and at least one test case are required");
     }
 
-    // 2. Test Case Validation
-    // A problem is useless without test cases for the engine to run against.
-    if (!testCases || !Array.isArray(testCases) || testCases.length === 0) {
-        throw new ApiError(400, "You must provide at least one test case");
-    }
-
-    // Ensure every test case has an input and an expectedOutput
-    const isValidTestCases = testCases.every(tc => tc.input && tc.expectedOutput);
-    if (!isValidTestCases) {
-        throw new ApiError(400, "Every test case must include both 'input' and 'expectedOutput'");
-    }
-
-    // 3. Uniqueness Check
-    const existingProblem = await Problem.findOne({ title: title.trim() });
-    if (existingProblem) {
-        throw new ApiError(409, "A problem with this title already exists. Please choose a unique title.");
-    }
-
-    // 4. Create the Problem
-    // Notice how we use `req.user._id`. We know this exists securely because 
-    // the verifyJWT middleware ensures only logged-in users reach this point.
-    const newProblem = await Problem.create({
-        title: title.trim(),
+    // 1. Save to MongoDB
+    const problem = await Problem.create({
+        title,
         description,
         difficulty,
-        timeLimit: timeLimit || 1000,     // Default to 1s if not provided
-        memoryLimit: memoryLimit || 256,   // Default to 256MB if not provided
-        author: req.user._id,              // The Admin creating it
-        testCases
+        timeLimit,
+        memoryLimit,
+        testCases,
+        author: req.user._id,
     });
 
-    // 5. Check if creation failed at the DB level
-    if (!newProblem) {
-        throw new ApiError(500, "An error occurred while saving the problem to the database");
+    // 2. FILE SYSTEM SYNC: Automatically create the Docker files!
+    try {
+        const problemFolder = path.resolve("problems", problem._id.toString());
+        
+        // Create the folder for this specific problem ID
+        if (!fs.existsSync(problemFolder)) {
+            fs.mkdirSync(problemFolder, { recursive: true });
+        }
+
+        // Loop through the array from the frontend and create 1.in, 1.out, 2.in, 2.out...
+        testCases.forEach((tc, index) => {
+            const testCaseNumber = index + 1;
+            fs.writeFileSync(path.join(problemFolder, `${testCaseNumber}.in`), tc.input);
+            fs.writeFileSync(path.join(problemFolder, `${testCaseNumber}.out`), tc.expectedOutput);
+        });
+    } catch (error) {
+        // If file writing fails, we should ideally delete the DB record to stay synced
+        await Problem.findByIdAndDelete(problem._id);
+        throw new ApiError(500, "Failed to write test cases to file system");
     }
 
-    // 6. Respond Success
     return res.status(201).json(
-        new ApiResponse(201, newProblem, "Problem created successfully")
+        new ApiResponse(201, problem, "Problem created successfully and synced to File System")
     );
 });
 
@@ -113,5 +102,45 @@ export const getProblemById = asyncHandler(async (req, res) => {
 
     return res.status(200).json(
         new ApiResponse(200, problemObj, "Problem fetched successfully")
+    );
+});
+
+
+// src/controllers/problem.controller.js
+
+/**
+ * WORKFLOW: DELETE PROBLEM (ADMIN ONLY)
+ * 1. Extract problem ID from the URL params.
+ * 2. Find and delete the problem from MongoDB.
+ * 3. Physically delete the problem's folder and test case files from the hard drive.
+ */
+export const deleteProblem = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+
+    // 1. Delete the record from MongoDB
+    const deletedProblem = await Problem.findByIdAndDelete(id);
+
+    if (!deletedProblem) {
+        throw new ApiError(404, "Problem not found");
+    }
+
+    // 2. FILE SYSTEM SYNC: Destroy the physical folder!
+    try {
+        const problemFolder = path.resolve("problems", id);
+        
+        // If the folder exists, wipe it and everything inside it
+        if (fs.existsSync(problemFolder)) {
+            // recursive: true deletes files inside, force: true ignores errors if it's already gone
+            fs.rmSync(problemFolder, { recursive: true, force: true });
+        }
+    } catch (error) {
+        console.error("Critical File System Error during deletion:", error);
+        // Note: We don't throw an ApiError here because the MongoDB record is already successfully gone.
+        // We just log it so the admin can manually clean it up later if the hard drive locked the file.
+    }
+
+    // 3. Send success response back to the React UI
+    return res.status(200).json(
+        new ApiResponse(200, {}, "Problem and associated files permanently deleted")
     );
 });

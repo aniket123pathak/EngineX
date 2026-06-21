@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { getAllProblems } from "../api/problemApi";
+import { getAllProblems, deleteProblem } from "../api/problemApi";
+import DeleteConfirmModal from "../components/DeleteConfirmModal";
 
 const DIFFICULTY_STYLES = {
   EASY: "border-gray-400 text-gray-600 bg-white",
@@ -28,6 +29,14 @@ export default function DashboardPage() {
   const [problems, setProblems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState(null);
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    await deleteProblem(deleteTarget._id);
+    setProblems((prev) => prev.filter((p) => p._id !== deleteTarget._id));
+    setDeleteTarget(null);
+  };
 
   useEffect(() => {
     const fetchProblems = async () => {
@@ -141,18 +150,37 @@ export default function DashboardPage() {
                     <DifficultyBadge difficulty={problem.difficulty} />
                   </td>
                   <td className="px-5 py-4 text-right">
-                    <button
-                      onClick={() => navigate(`/problems/${problem._id}`)}
-                      className="cursor-pointer border-2 border-black bg-white px-4 py-1.5 text-xs font-bold tracking-wide text-black uppercase transition-all hover:bg-black hover:text-white"
-                    >
-                      Solve →
-                    </button>
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => navigate(`/problems/${problem._id}`)}
+                        className="cursor-pointer border-2 border-black bg-white px-4 py-1.5 text-xs font-bold tracking-wide text-black uppercase transition-all hover:bg-black hover:text-white"
+                      >
+                        Solve →
+                      </button>
+                      {user?.role === "ADMIN" && (
+                        <button
+                          id={`delete-btn-${problem._id}`}
+                          onClick={() => setDeleteTarget(problem)}
+                          className="cursor-pointer border-2 border-black bg-white px-4 py-1.5 text-xs font-bold tracking-wide text-black uppercase transition-all hover:border-red-700 hover:bg-red-700 hover:text-white"
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+      )}
+      {/* Delete Confirmation Modal */}
+      {deleteTarget && (
+        <DeleteConfirmModal
+          problemTitle={deleteTarget.title}
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setDeleteTarget(null)}
+        />
       )}
     </div>
   );

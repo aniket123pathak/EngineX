@@ -34,10 +34,16 @@ export const submitCode = asyncHandler(async (req, res) => {
     try {
         // 3. WAKE UP THE DOCKER ENGINE
         // The folder name on your hard drive must exactly match the problem's MongoDB _id
-        const problemFolder = problem._id.toString(); 
+        const problemFolder = problem._id.toString();
         
         // Run the code against the test cases
-        const evaluation = await evaluateSubmission(problemFolder, code);
+        const evaluation = await evaluateSubmission(
+            problemFolder, 
+            code, 
+            language,
+            problem.timeLimit, 
+            problem.memoryLimit
+        );
 
         if (evaluation.verdict === "SYSTEM_ERROR") {
             console.log("HIDDEN ENGINE ERROR:", evaluation.message);

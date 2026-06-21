@@ -43,14 +43,44 @@ function getVerdictColor(verdict) {
 }
 
 /* ─────────────────────────────────────────────
-   Default boilerplate
+   Language configuration
    ───────────────────────────────────────────── */
-const DEFAULT_CODE = `# Write your solution here
+const BOILERPLATES = {
+  cpp: `#include <iostream>
+using namespace std;
+
+int main() {
+    // Write your solution here
+    return 0;
+}
+`,
+  python: `# Write your solution here
 def solve():
     pass
 
 solve()
-`;
+`,
+  javascript: `// Write your solution here
+function solve() {
+
+}
+
+solve();
+`,
+};
+
+const LANGUAGE_OPTIONS = [
+  { value: "cpp", label: "C++ (GCC 11)" },
+  { value: "python", label: "Python (3.9)" },
+  { value: "javascript", label: "Node.js (18)" },
+];
+
+/** Monaco uses 'cpp' for C++, 'python', 'javascript' — matches our keys */
+const MONACO_LANG_MAP = {
+  cpp: "cpp",
+  python: "python",
+  javascript: "javascript",
+};
 
 /* ═════════════════════════════════════════════
    MAIN COMPONENT
@@ -64,8 +94,8 @@ export default function SolveProblemPage() {
   const [fetchError, setFetchError] = useState("");
 
   /* ── Editor & execution state ── */
-  const [code, setCode] = useState(DEFAULT_CODE);
-  const [language] = useState("python");
+  const [language, setLanguage] = useState("cpp");
+  const [code, setCode] = useState(BOILERPLATES["cpp"]);
   const [isExecuting, setIsExecuting] = useState(false);
   const [result, setResult] = useState(null);
   const [submitError, setSubmitError] = useState("");
@@ -238,15 +268,41 @@ export default function SolveProblemPage() {
           RIGHT COLUMN — Execution Area
          ───────────────────────────────────── */}
       <main className="flex w-full flex-col bg-white lg:w-[55%]">
-        {/* ── Language indicator bar ── */}
+        {/* ── Language selector toolbar ── */}
         <div className="flex items-center justify-between border-b-2 border-black bg-white px-5 py-2.5">
           <div className="flex items-center gap-3">
-            <span className="text-xs font-bold tracking-wider text-gray-400 uppercase">
+            <label
+              htmlFor="language-select"
+              className="text-xs font-bold tracking-wider text-gray-400 uppercase"
+            >
               Language
-            </span>
-            <span className="border-2 border-black bg-black px-3 py-0.5 text-xs font-bold tracking-wide text-white uppercase">
-              Python
-            </span>
+            </label>
+            <div className="relative">
+              <select
+                id="language-select"
+                value={language}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setLanguage(next);
+                  setCode(BOILERPLATES[next]);
+                }}
+                className="cursor-pointer appearance-none border-2 border-black bg-white py-1 pr-8 pl-3 font-mono text-xs font-bold text-black outline-none transition-colors hover:bg-gray-100"
+              >
+                {LANGUAGE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              {/* Custom down-arrow */}
+              <svg
+                className="pointer-events-none absolute top-1/2 right-2 h-3 w-3 -translate-y-1/2 text-black"
+                viewBox="0 0 12 12"
+                fill="currentColor"
+              >
+                <path d="M2 4l4 4 4-4z" />
+              </svg>
+            </div>
           </div>
           <span className="font-mono text-xs text-gray-400">
             {code.split("\n").length} lines
@@ -257,7 +313,7 @@ export default function SolveProblemPage() {
         <div className="flex-[7] border-b-2 border-black">
           <Editor
             height="100%"
-            language={language}
+            language={MONACO_LANG_MAP[language]}
             theme="light"
             value={code}
             onChange={(value) => setCode(value || "")}
