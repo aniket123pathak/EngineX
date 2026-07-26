@@ -1,23 +1,18 @@
-// src/models/submission.model.js
-import mongoose, { Schema } from "mongoose";
 
-/**
- * MAIN SCHEMA: The Code Submission
- * This tracks the exact state of a user's attempt at solving a problem.
- */
+import mongoose, { Schema } from "mongoose";
 const submissionSchema = new Schema(
     {
         user: {
             type: Schema.Types.ObjectId,
             ref: "User",
             required: true,
-            index: true, // Optimizes finding "All submissions by User X"
+            index: true, 
         },
         problem: {
             type: Schema.Types.ObjectId,
             ref: "Problem",
             required: true,
-            index: true, // Optimizes finding "All submissions for Problem Y"
+            index: true, 
         },
         code: {
             type: String,
@@ -25,37 +20,35 @@ const submissionSchema = new Schema(
         },
         language: {
             type: String,
-            // Restrict exactly which languages your engine supports
             enum: ["cpp", "java", "python", "javascript", "rust"], 
             required: true,
         },
         status: {
             type: String,
             enum: [
-                "PENDING",              // Code received, waiting in queue
-                "PROCESSING",           // Worker is currently running it
-                "ACCEPTED",             // All test cases passed
-                "WRONG_ANSWER",         // Output did not match expected
-                "TIME_LIMIT_EXCEEDED",  // Ran too long
-                "MEMORY_LIMIT_EXCEEDED",// Used too much RAM
-                "RUNTIME_ERROR",        // Crashed during execution (e.g., Division by Zero)
-                "COMPILATION_ERROR",     // Syntax error, failed to compile
+                "PENDING",              
+                "PROCESSING",           
+                "ACCEPTED",             
+                "WRONG_ANSWER",         
+                "TIME_LIMIT_EXCEEDED",  
+                "MEMORY_LIMIT_EXCEEDED",
+                "RUNTIME_ERROR",        
+                "COMPILATION_ERROR",     
                 "SYSTEM_ERROR"
             ],
             default: "PENDING",
-            index: true, // Optimizes querying "Show me all accepted submissions"
+            index: true, 
         },
-        // --- METRICS (Populated by the Rust Worker later) ---
         executionTime: {
-            type: Number, // Measured in milliseconds
+            type: Number, 
             default: null,
         },
         memoryUsed: {
-            type: Number, // Measured in Megabytes
+            type: Number, 
             default: null,
         },
         errorMessage: {
-            type: String, // Stores the stack trace if it crashes
+            type: String, 
             default: null,
         }
     },
@@ -63,5 +56,4 @@ const submissionSchema = new Schema(
         timestamps: true,
     }
 );
-
 export const Submission = mongoose.model("Submission", submissionSchema);

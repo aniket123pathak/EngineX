@@ -1,8 +1,7 @@
-// src/models/user.model.js
+
 import mongoose, { Schema } from "mongoose";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
-
 const userSchema = new Schema(
     {
         username: {
@@ -11,7 +10,7 @@ const userSchema = new Schema(
             unique: true,
             lowercase: true,
             trim: true,
-            index: true, // Optimized for fast searching (Critical for Leaderboards)
+            index: true, 
         },
         email: {
             type: String,
@@ -26,40 +25,29 @@ const userSchema = new Schema(
         },
         role: {
             type: String,
-            enum: ["USER", "ADMIN"], // Admins can create contests, Users can only solve
+            enum: ["USER", "ADMIN"], 
             default: "USER",
         },
         rating: {
             type: Number,
-            default: 1000, // Starting Elo rating for the contest platform
+            default: 1000, 
         },
         refreshToken: {
             type: String,
         }
     },
     {
-        timestamps: true, // Automatically adds createdAt and updatedAt
+        timestamps: true, 
     }
 );
-
-// --- 🔒 SECURITY HOOK: Hash password before saving ---
 userSchema.pre("save", async function (next) {
-    // Only hash the password if it was actually modified (or is new)
     if (!this.isModified("password")) return next();
-
-    // 10 is the number of 'salt rounds' (standard security level)
     this.password = await bcrypt.hash(this.password, 10);
     next();
 });
-
-// --- 🛠️ CUSTOM METHODS ---
-
-// 1. Verify Password Method
 userSchema.methods.isPasswordCorrect = async function (password) {
     return await bcrypt.compare(password, this.password);
 };
-
-// 2. Generate Short-Lived Access Token (For API calls)
 userSchema.methods.generateAccessToken = function () {
     return jwt.sign(
         {
@@ -72,8 +60,6 @@ userSchema.methods.generateAccessToken = function () {
         { expiresIn: process.env.ACCESS_TOKEN_EXPIRY }
     );
 };
-
-// 3. Generate Long-Lived Refresh Token (To keep user logged in)
 userSchema.methods.generateRefreshToken = function () {
     return jwt.sign(
         { _id: this._id },
@@ -81,5 +67,4 @@ userSchema.methods.generateRefreshToken = function () {
         { expiresIn: process.env.REFRESH_TOKEN_EXPIRY }
     );
 };
-
 export const User = mongoose.model("User", userSchema);

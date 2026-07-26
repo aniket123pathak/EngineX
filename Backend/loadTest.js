@@ -1,15 +1,10 @@
-// loadtest.js
-
-// --- CONFIGURATION ---
-const NUM_REQUESTS = 500; // Change this to increase the pain!
+const NUM_REQUESTS = 500;
 const PROBLEM_ID = "6a5d0a6c2f2b5bb44ea3a844"; 
-// To bypass auth, copy your exact "Cookie" string from the Chrome Network Tab
 const AUTH_COOKIE = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2YTMwZWVlY2RhY2VkMTNiMzBiNmVkNjciLCJlbWFpbCI6ImFuaWtldDE3MjZAZ21haWwuY29tIiwidXNlcm5hbWUiOiJhbmlrZXQxNzI2Iiwicm9sZSI6IkFETUlOIiwiaWF0IjoxNzg0NDg0OTY2LCJleHAiOjE3ODQ1NzEzNjZ9.hP7qszjeoRcrVH8_UI63uxTiJFntYzSxH7DHmK_4aVM"; 
 
 const payload = {
     problemId: PROBLEM_ID,
     language: "python",
-    // A simple, fast script so we are purely testing Docker's boot time
     code: "print('1')\n" 
 };
 
@@ -43,11 +38,9 @@ async function runTest() {
     
     const requests = [];
     for (let i = 1; i <= NUM_REQUESTS; i++) {
-        // We push them into an array WITHOUT awaiting them
         requests.push(sendSubmission(i));
     }
     
-    // Promise.all fires every single request at the exact same time
     await Promise.all(requests);
     console.log(`\n🏁 ALL ${NUM_REQUESTS} REQUESTS COMPLETED.`);
 }
