@@ -8,6 +8,7 @@ import SolveProblemPage from "./pages/SolveProblemPage";
 import CreateProblemPage from "./pages/CreateProblemPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
+import UserProfilePage from "./pages/UserProfilePage";
 
 export default function App() {
   return (
@@ -22,6 +23,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <UserProfilePage />
             </ProtectedRoute>
           }
         />

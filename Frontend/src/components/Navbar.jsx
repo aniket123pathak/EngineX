@@ -26,6 +26,12 @@ export default function Navbar() {
               >
                 Dashboard
               </Link>
+              <Link
+                to="/profile"
+                className="text-sm font-semibold text-gray-700 transition-colors hover:text-black"
+              >
+                Profile
+              </Link>
               <button
                 onClick={handleLogout}
                 className="cursor-pointer border-2 border-black bg-white px-4 py-1.5 text-sm font-bold text-black transition-colors hover:bg-black hover:text-white"

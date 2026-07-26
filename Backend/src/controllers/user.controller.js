@@ -3,6 +3,9 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { User } from "../models/user.model.js";
+import { Submission } from "../models/submission.model.js";
+import { removeAllQueueData } from "bullmq";
+
 const generateAccessAndRefreshTokens = async (userId) => {
     try {
         const user = await User.findById(userId);
@@ -95,4 +98,33 @@ export const logoutUser = asyncHandler(async (req, res) => {
         .clearCookie("accessToken", options)
         .clearCookie("refreshToken", options)
         .json(new ApiResponse(200, {}, "User logged out successfully"));
+});
+
+export const getUserProfile = asyncHandler(async (req, res) => {
+    const userId = req.user._id;
+
+    
+    const solvedProblems = await Submission.distinct("problem", {
+        user: userId,
+        status: "ACCEPTED"
+    });
+    const totalSolved = solvedProblems.length;
+
+    const recentSubmissions = await Submission.find({ user: userId })
+        .populate("problem", "title difficulty")
+        .sort({ createdAt: -1 }) 
+        .limit(50); 
+
+    return res.status(200).json(
+        new ApiResponse(200, {
+            user: {
+                username: req.user.username,
+                email: req.user.email
+            },
+            stats: {
+                totalSolved
+            },
+            recentSubmissions
+        }, "User profile fetched successfully")
+    );
 });
