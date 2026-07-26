@@ -13,10 +13,12 @@
   "license": "ISC",
   "dependencies": {
     "bcrypt": "^6.0.0",
+    "bullmq": "^5.80.9",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^16.6.1",
     "express": "^4.22.2",
+    "ioredis": "^5.11.1",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^8.24.0",
     "uuid": "^14.0.0"

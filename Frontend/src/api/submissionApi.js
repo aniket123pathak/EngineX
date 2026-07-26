@@ -8,3 +8,12 @@ import axiosInstance from "../utils/axiosInstance";
 export const submitCode = (payload) => {
   return axiosInstance.post("/submissions/submit", payload);
 };
+
+/**
+ * Poll a submission's current status by its ID.
+ * @param {string} submissionId
+ * @returns {Promise<import("axios").AxiosResponse>}
+ */
+export const getSubmissionById = (submissionId) => {
+  return axiosInstance.get(`/submissions/${submissionId}`);
+};

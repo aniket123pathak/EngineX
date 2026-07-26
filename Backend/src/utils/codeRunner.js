@@ -4,6 +4,7 @@ import fs from "fs";
 import path from "path";
 import { exec } from "child_process";
 import { v4 as uuidv4 } from "uuid";
+
 // ============================================================================
 // LANGUAGE CONFIGURATION MAP
 // ============================================================================
@@ -38,17 +39,19 @@ const LANGUAGE_CONFIG = {
  * @param {string} dockerCommand - The exact shell command to spin up the container
  * @param {string} inputData - The raw text payload containing the hidden test case input
  * @param {number} timeLimit - The max execution time in milliseconds
+ * @param {string} containerName - The unique name of the container to allow force-killing
  * @returns {Promise<Object>} - Resolves with the container status and raw string output
  */
-// FIX 1: Added timeLimit parameter to the function signature
-const runSingleTestCase = (dockerCommand, inputData, timeLimit) => {
+const runSingleTestCase = (dockerCommand, inputData, timeLimit, containerName) => {
     return new Promise((resolve, reject) => {
         
-        // FIX 2: Replaced hardcoded 3000 with dynamic timeLimit
         const childProcess = exec(dockerCommand, { timeout: timeLimit }, (error, stdout, stderr) => {
             
-            // FIX 3: Detect if Node.js forcefully killed Docker because of the time limit
+            // 🛡️ THE ASSASSIN: Detect if Node.js forcefully killed Docker because of the time limit
             if (error && error.killed) {
+                // Fire a background command to instantly nuke the frozen container
+                exec(`docker rm -f ${containerName}`, () => {}); 
+                
                 resolve({ status: "EXECUTION_ERROR", output: "TIME_LIMIT_EXCEEDED" });
                 return;
             }
@@ -81,8 +84,7 @@ const runSingleTestCase = (dockerCommand, inputData, timeLimit) => {
 // CORE ENGINE: CODEFORCES-STYLE SEQUENTIAL EVALUATION
 // ============================================================================
 
-// Add 'language' to the parameters
-export const evaluateSubmission = async (problemSlug, userCode, language = "python", timeLimit = 3000, memoryLimit = 256) => {
+export const evaluateSubmission = async (problemSlug, userCode, language = "python", timeLimit = 1200, memoryLimit = 256) => {
     
     // 1. Fetch the correct configuration for the requested language
     const config = LANGUAGE_CONFIG[language];
@@ -119,13 +121,15 @@ export const evaluateSubmission = async (problemSlug, userCode, language = "pyth
             const inputData = fs.readFileSync(path.join(problemWorkspacePath, inFile), "utf-8");
             const expectedOutput = fs.readFileSync(path.join(problemWorkspacePath, outFile), "utf-8").replace(/\r/g, "").trim();
 
-            // 3. THE MAGIC LINE: Dynamically inject the Image and the Run Command
-            // Notice we use `sh -c "${config.runCommand}"` so Docker handles the && operator for C++ perfectly.
-            const dockerCommand = `docker run -i --rm --network none --memory="${memoryLimit}m" -v "${tempWorkspacePath}:/app" -w /app ${config.image} sh -c "${config.runCommand}"`;
-            
-            const result = await runSingleTestCase(dockerCommand, inputData, timeLimit);
+            // 3. Generate a unique name for this specific test case's container
+            const containerName = `enginex-${submissionId}-${testCaseNumber}`;
 
-            // ... (The rest of your exact grading logic stays completely the same)
+            // 4. THE MAGIC LINE: Dynamically inject the Image, Run Command, and the unique --name
+            const dockerCommand = `docker run --name ${containerName} -i --rm --network none --memory="${memoryLimit}m" -v "${tempWorkspacePath}:/app" -w /app ${config.image} sh -c "${config.runCommand}"`;
+            
+            // 5. Pass the containerName into the test runner
+            const result = await runSingleTestCase(dockerCommand, inputData, timeLimit, containerName);
+
             let verdict = "ACCEPTED";
             const cleanedOutput = result.output.replace(/\r/g, "").trim();
             

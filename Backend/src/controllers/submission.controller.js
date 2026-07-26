@@ -5,6 +5,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { Submission } from "../models/submission.model.js";
 import { Problem } from "../models/problem.model.js";
 import { evaluateSubmission } from "../utils/codeRunner.js"; // Import your new engine
+import { addJobToQueue } from "../queue/localQueue.js";
 
 /**
  * WORKFLOW: SUBMIT AND EVALUATE CODE (Synchronous V1)
@@ -28,46 +29,37 @@ export const submitCode = asyncHandler(async (req, res) => {
         problem: problemId,
         code,
         language,
-        status: "PROCESSING" // Since we aren't using queues yet, it processes immediately
+        status: "PENDING"
     });
 
-    try {
-        // 3. WAKE UP THE DOCKER ENGINE
-        // The folder name on your hard drive must exactly match the problem's MongoDB _id
-        const problemFolder = problem._id.toString();
-        
-        // Run the code against the test cases
-        const evaluation = await evaluateSubmission(
-            problemFolder, 
-            code, 
-            language,
-            problem.timeLimit, 
-            problem.memoryLimit
-        );
+    addJobToQueue({
+        submissionId: submission._id,
+        problemId: problem._id,
+        code,
+        language,
+        timeLimit: problem.timeLimit,
+        memoryLimit: problem.memoryLimit
+    });
 
-        if (evaluation.verdict === "SYSTEM_ERROR") {
-            console.log("HIDDEN ENGINE ERROR:", evaluation.message);
-        }
+    return res.status(200).json(
+        new ApiResponse(200, {
+            submissionId: submission._id,
+            status: "PENDING"
+        }, "Code submitted to queue successfully")
+    );
+    
+});
 
-        // 4. Update the database with the final verdict from Docker
-        submission.status = evaluation.verdict;
-        await submission.save();
+export const getSubmissionStatus = asyncHandler(async (req, res) => {
+    const { submissionId } = req.params;
 
-        // 5. Return the exact results to the React frontend
-        return res.status(200).json(
-            new ApiResponse(200, {
-                submissionId: submission._id,
-                verdict: evaluation.verdict,
-                testCasesPassed: evaluation.testCasesChecked,
-                details: evaluation.details // Sends back exactly what failed/passed
-            }, "Execution completed successfully")
-        );
-
-    } catch (error) {
-        // Fallback if Docker completely crashes or the hard drive fails
-        console.error("CRITICAL ENGINE FAILURE:", error);
-        submission.status = "SYSTEM_ERROR";
-        await submission.save();
-        throw new ApiError(500, "Internal Server Error during code execution");
+    const submission = await Submission.findById(submissionId);
+    
+    if (!submission) {
+        throw new ApiError(404, "Submission not found");
     }
+
+    return res.status(200).json(
+        new ApiResponse(200, submission, "Submission status fetched successfully")
+    );
 });

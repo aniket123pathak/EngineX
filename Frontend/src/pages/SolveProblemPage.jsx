@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import Editor from "@monaco-editor/react";
 import { getProblemById } from "../api/problemApi";
-import { submitCode } from "../api/submissionApi";
+import { submitCode, getSubmissionById } from "../api/submissionApi";
 
 /* ─────────────────────────────────────────────
    Difficulty badge — matches rest of the app
@@ -28,19 +28,70 @@ function DifficultyBadge({ difficulty }) {
 /* ─────────────────────────────────────────────
    Verdict color mapping (light-mode optimised)
    ───────────────────────────────────────────── */
-const VERDICT_COLORS = {
-  ACCEPTED: "text-green-700",
-  WRONG_ANSWER: "text-red-600",
-  RUNTIME_ERROR: "text-purple-700",
-  SYSTEM_ERROR: "text-black",
-  TIME_LIMIT_EXCEEDED: "text-red-600",
-  MEMORY_LIMIT_EXCEEDED: "text-red-600",
-  COMPILATION_ERROR: "text-purple-700",
+const VERDICT_CONFIG = {
+  ACCEPTED: {
+    text: "text-green-700",
+    bg: "bg-green-50",
+    border: "border-green-300",
+    icon: "✓",
+  },
+  WRONG_ANSWER: {
+    text: "text-red-600",
+    bg: "bg-red-50",
+    border: "border-red-300",
+    icon: "✗",
+  },
+  RUNTIME_ERROR: {
+    text: "text-orange-600",
+    bg: "bg-orange-50",
+    border: "border-orange-300",
+    icon: "⚠",
+  },
+  SYSTEM_ERROR: {
+    text: "text-gray-700",
+    bg: "bg-gray-100",
+    border: "border-gray-300",
+    icon: "⊘",
+  },
+  TIME_LIMIT_EXCEEDED: {
+    text: "text-red-600",
+    bg: "bg-red-50",
+    border: "border-red-300",
+    icon: "⏱",
+  },
+  MEMORY_LIMIT_EXCEEDED: {
+    text: "text-red-600",
+    bg: "bg-red-50",
+    border: "border-red-300",
+    icon: "⊗",
+  },
+  COMPILATION_ERROR: {
+    text: "text-purple-700",
+    bg: "bg-purple-50",
+    border: "border-purple-300",
+    icon: "⚙",
+  },
 };
 
-function getVerdictColor(verdict) {
-  return VERDICT_COLORS[verdict] || "text-black";
+const DEFAULT_VERDICT_CONFIG = {
+  text: "text-gray-700",
+  bg: "bg-gray-100",
+  border: "border-gray-300",
+  icon: "?",
+};
+
+function getVerdictConfig(verdict) {
+  return VERDICT_CONFIG[verdict] || DEFAULT_VERDICT_CONFIG;
 }
+
+function getVerdictColor(verdict) {
+  return getVerdictConfig(verdict).text;
+}
+
+/* ─────────────────────────────────────────────
+   Polling interval (ms)
+   ───────────────────────────────────────────── */
+const POLL_INTERVAL_MS = 1200;
 
 /* ─────────────────────────────────────────────
    Language configuration
@@ -100,6 +151,12 @@ export default function SolveProblemPage() {
   const [result, setResult] = useState(null);
   const [submitError, setSubmitError] = useState("");
 
+  /* ── Async polling state ── */
+  const [submissionId, setSubmissionId] = useState(null);
+  const [pollingStatus, setPollingStatus] = useState(null); // "PENDING" while polling
+  const pollIntervalRef = useRef(null);
+  const pollCountRef = useRef(0);
+
   /* ── Fetch problem on mount ── */
   useEffect(() => {
     const fetchProblem = async () => {
@@ -117,11 +174,28 @@ export default function SolveProblemPage() {
     fetchProblem();
   }, [id]);
 
-  /* ── Submit handler ── */
+  /* ── Stop any running poll ── */
+  const stopPolling = useCallback(() => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+  }, []);
+
+  /* ── Cleanup on unmount ── */
+  useEffect(() => {
+    return () => stopPolling();
+  }, [stopPolling]);
+
+  /* ── Submit handler (async / queue-based) ── */
   const handleSubmit = async () => {
+    stopPolling();
     setIsExecuting(true);
     setResult(null);
     setSubmitError("");
+    setSubmissionId(null);
+    setPollingStatus("PENDING");
+    pollCountRef.current = 0;
 
     try {
       const res = await submitCode({
@@ -129,12 +203,39 @@ export default function SolveProblemPage() {
         language,
         code,
       });
-      setResult(res.data.data);
+
+      const newSubmissionId = res.data.data.submissionId;
+      setSubmissionId(newSubmissionId);
+
+      // Start polling
+      pollIntervalRef.current = setInterval(async () => {
+        try {
+          pollCountRef.current += 1;
+          const pollRes = await getSubmissionById(newSubmissionId);
+          const submission = pollRes.data.data;
+
+          if (submission.status !== "PENDING") {
+            // We have a final verdict — stop polling
+            stopPolling();
+            setResult(submission);
+            setPollingStatus(null);
+            setIsExecuting(false);
+          } else {
+            setPollingStatus("PENDING");
+          }
+        } catch (pollErr) {
+          // If polling itself fails, stop and show error
+          stopPolling();
+          setSubmitError("Lost connection while checking results. Please try again.");
+          setPollingStatus(null);
+          setIsExecuting(false);
+        }
+      }, POLL_INTERVAL_MS);
     } catch (err) {
       setSubmitError(
         err.response?.data?.message || "Submission failed. Please try again."
       );
-    } finally {
+      setPollingStatus(null);
       setIsExecuting(false);
     }
   };
@@ -383,7 +484,16 @@ export default function SolveProblemPage() {
               Terminal
             </span>
             <span className="text-xs text-gray-400">— Output</span>
-            {result && (
+            {isExecuting && pollingStatus === "PENDING" && (
+              <span className="ml-2 inline-flex items-center gap-1.5 border-2 border-black bg-gray-100 px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-black uppercase">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-black opacity-40" />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-black" />
+                </span>
+                Polling
+              </span>
+            )}
+            {(result || submitError) && (
               <button
                 onClick={() => {
                   setResult(null);
@@ -401,21 +511,62 @@ export default function SolveProblemPage() {
             {/* Empty state */}
             {!result && !submitError && !isExecuting && (
               <div className="flex h-full items-center justify-center">
-                <p className="text-xs font-semibold tracking-wide text-gray-300 uppercase">
-                  Submit your code to see results here
-                </p>
+                <div className="text-center">
+                  <div className="mx-auto mb-4 h-10 w-10 border-2 border-gray-200 bg-white flex items-center justify-center">
+                    <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z" />
+                    </svg>
+                  </div>
+                  <p className="text-xs font-semibold tracking-wide text-gray-300 uppercase">
+                    Submit your code to see results here
+                  </p>
+                </div>
               </div>
             )}
 
-            {/* Executing state */}
+            {/* ── Premium Loading / Polling State ── */}
             {isExecuting && (
               <div className="flex h-full items-center justify-center">
-                <div className="text-center">
-                  <div className="mb-2 text-xs font-bold tracking-widest text-gray-400 uppercase animate-pulse">
-                    Evaluating your submission…
+                <div className="text-center space-y-6">
+                  {/* Orbital spinner */}
+                  <div className="relative mx-auto h-20 w-20">
+                    {/* Outer ring */}
+                    <div className="absolute inset-0 rounded-full border-2 border-gray-200" />
+                    {/* Spinning arc 1 */}
+                    <div className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-black" style={{ animationDuration: '1.2s' }} />
+                    {/* Spinning arc 2 (counter) */}
+                    <div className="absolute inset-1.5 animate-spin rounded-full border-2 border-transparent border-b-gray-400" style={{ animationDuration: '1.8s', animationDirection: 'reverse' }} />
+                    {/* Inner ring */}
+                    <div className="absolute inset-3 rounded-full border border-gray-200" />
+                    {/* Center dot */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="h-2 w-2 rounded-full bg-black animate-pulse" />
+                    </div>
                   </div>
-                  <div className="mx-auto h-1 w-32 overflow-hidden bg-gray-200">
-                    <div className="h-full w-full origin-left animate-pulse bg-black" />
+
+                  {/* Status text */}
+                  <div className="space-y-2">
+                    <div className="text-sm font-bold tracking-widest text-black uppercase">
+                      Judging Your Code
+                    </div>
+                    <div className="text-xs text-gray-500 tracking-wide">
+                      {pollingStatus === "PENDING"
+                        ? `Waiting for verdict · Poll #${pollCountRef.current}`
+                        : "Submitting to judge…"}
+                    </div>
+                  </div>
+
+                  {/* Skeleton shimmer bars */}
+                  <div className="mx-auto max-w-xs space-y-2">
+                    <div className="h-2 rounded-full bg-gray-200 overflow-hidden">
+                      <div className="h-full w-full bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 animate-pulse" style={{ animationDuration: '1.5s' }} />
+                    </div>
+                    <div className="h-2 w-3/4 mx-auto rounded-full bg-gray-200 overflow-hidden">
+                      <div className="h-full w-full bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 animate-pulse" style={{ animationDuration: '1.5s', animationDelay: '0.3s' }} />
+                    </div>
+                    <div className="h-2 w-1/2 mx-auto rounded-full bg-gray-200 overflow-hidden">
+                      <div className="h-full w-full bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 animate-pulse" style={{ animationDuration: '1.5s', animationDelay: '0.6s' }} />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -424,102 +575,103 @@ export default function SolveProblemPage() {
             {/* Error from submission */}
             {submitError && (
               <div className="border-2 border-black bg-gray-100 p-4">
-                <div className="mb-1 text-xs font-bold tracking-wider text-red-600 uppercase">
-                  Error
+                <div className="mb-1 flex items-center gap-2 text-xs font-bold tracking-wider text-red-600 uppercase">
+                  <span>⚠</span> Error
                 </div>
                 <p className="text-sm text-black">{submitError}</p>
               </div>
             )}
 
-            {/* Result */}
-            {result && (
-              <div className="space-y-4">
-                {/* Verdict banner */}
-                <div className="border-2 border-black p-4">
-                  <div className="mb-1 text-xs font-bold tracking-wider text-gray-400 uppercase">
-                    Verdict
-                  </div>
-                  <div
-                    className={`text-2xl font-black tracking-tight uppercase ${getVerdictColor(
-                      result.verdict
-                    )}`}
-                  >
-                    {result.verdict?.replace(/_/g, " ")}
-                  </div>
-                </div>
-
-                {/* Test cases passed */}
-                {result.testCasesPassed !== undefined && (
-                  <div className="border-2 border-black p-4">
-                    <div className="mb-1 text-xs font-bold tracking-wider text-gray-400 uppercase">
-                      Test Cases Passed
-                    </div>
-                    <div className="font-mono text-lg font-black text-black">
-                      {result.testCasesPassed}
-                      {problem.testCases && (
-                        <span className="text-gray-400">
-                          {" "}
-                          / {problem.testCases.length}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Detailed results per test case */}
-                {result.details && result.details.length > 0 && (
-                  <div>
+            {/* ── Final Verdict Result ── */}
+            {result && (() => {
+              const verdict = result.verdict || result.status;
+              const vc = getVerdictConfig(verdict);
+              return (
+                <div className="space-y-4 animate-[fadeIn_0.4s_ease-out]">
+                  {/* Verdict banner */}
+                  <div className={`border-2 p-5 ${vc.border} ${vc.bg}`}>
                     <div className="mb-2 text-xs font-bold tracking-wider text-gray-400 uppercase">
-                      Details
+                      Verdict
                     </div>
-                    <div className="space-y-2">
-                      {result.details.map((detail, i) => (
-                        <div
-                          key={i}
-                          className="border border-gray-200 bg-white p-3"
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-gray-500">
-                              Test Case {i + 1}
-                            </span>
-                            <span
-                              className={`text-xs font-black uppercase ${getVerdictColor(
-                                detail.verdict || detail.status
-                              )}`}
-                            >
-                              {(detail.verdict || detail.status)?.replace(
-                                /_/g,
-                                " "
-                              )}
-                            </span>
-                          </div>
-                          {detail.stdout && (
-                            <div className="mt-2">
-                              <div className="mb-1 text-xs text-gray-400">
-                                stdout
-                              </div>
-                              <pre className="overflow-x-auto border border-gray-200 bg-gray-50 p-2 text-xs text-black">
-                                {detail.stdout}
-                              </pre>
-                            </div>
-                          )}
-                          {detail.stderr && (
-                            <div className="mt-2">
-                              <div className="mb-1 text-xs text-gray-400">
-                                stderr
-                              </div>
-                              <pre className="overflow-x-auto border border-gray-200 bg-gray-50 p-2 text-xs text-red-600">
-                                {detail.stderr}
-                              </pre>
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                    <div className="flex items-center gap-3">
+                      <span className={`text-3xl ${vc.text}`}>{vc.icon}</span>
+                      <span className={`text-2xl font-black tracking-tight uppercase ${vc.text}`}>
+                        {verdict?.replace(/_/g, " ")}
+                      </span>
                     </div>
                   </div>
-                )}
-              </div>
-            )}
+
+                  {/* Test cases passed */}
+                  {result.testCasesPassed !== undefined && (
+                    <div className="border-2 border-black p-4">
+                      <div className="mb-1 text-xs font-bold tracking-wider text-gray-400 uppercase">
+                        Test Cases Passed
+                      </div>
+                      <div className="font-mono text-lg font-black text-black">
+                        {result.testCasesPassed}
+                        {problem.testCases && (
+                          <span className="text-gray-400">
+                            {" "}
+                            / {problem.testCases.length}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Detailed results per test case */}
+                  {result.details && result.details.length > 0 && (
+                    <div>
+                      <div className="mb-2 text-xs font-bold tracking-wider text-gray-400 uppercase">
+                        Details
+                      </div>
+                      <div className="space-y-2">
+                        {result.details.map((detail, i) => {
+                          const dVerdict = detail.verdict || detail.status;
+                          const dvc = getVerdictConfig(dVerdict);
+                          return (
+                            <div
+                              key={i}
+                              className="border border-gray-200 bg-white p-3"
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold text-gray-500">
+                                  Test Case {i + 1}
+                                </span>
+                                <span className={`flex items-center gap-1.5 text-xs font-black uppercase ${dvc.text}`}>
+                                  <span className="text-sm">{dvc.icon}</span>
+                                  {dVerdict?.replace(/_/g, " ")}
+                                </span>
+                              </div>
+                              {detail.stdout && (
+                                <div className="mt-2">
+                                  <div className="mb-1 text-xs text-gray-400">
+                                    stdout
+                                  </div>
+                                  <pre className="overflow-x-auto border border-gray-200 bg-gray-50 p-2 text-xs text-black">
+                                    {detail.stdout}
+                                  </pre>
+                                </div>
+                              )}
+                              {detail.stderr && (
+                                <div className="mt-2">
+                                  <div className="mb-1 text-xs text-gray-400">
+                                    stderr
+                                  </div>
+                                  <pre className="overflow-x-auto border border-gray-200 bg-gray-50 p-2 text-xs text-red-600">
+                                    {detail.stderr}
+                                  </pre>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </div>
       </main>
