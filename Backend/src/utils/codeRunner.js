@@ -120,3 +120,36 @@ export const evaluateSubmission = async (problemSlug, userCode, language = "pyth
         }
     }
 };
+
+
+export const runCodeSnippet = async (userCode, language, inputData = "", timeLimit = 2000, memoryLimit = 256) => {
+    const config = LANGUAGE_CONFIG[language];
+    if (!config) {
+        return { status: "SYSTEM_ERROR", output: `Language '${language}' is not supported.` };
+    }
+
+    const submissionId = `run-${uuidv4()}`;
+    const tempWorkspacePath = path.resolve("temp_workspace", submissionId);
+
+    if (!fs.existsSync(path.resolve("temp_workspace"))) {
+        fs.mkdirSync(path.resolve("temp_workspace"));
+    }
+    fs.mkdirSync(tempWorkspacePath);
+
+    const userCodeFileName = `solution.${config.extension}`;
+    fs.writeFileSync(path.join(tempWorkspacePath, userCodeFileName), userCode);
+
+    const containerName = `enginex-run-${submissionId}`;
+    const dockerCommand = `docker run --name ${containerName} -i --rm --network none --memory="${memoryLimit}m" --memory-swap="${memoryLimit}m" -v "${tempWorkspacePath}:/app" -w /app ${config.image} sh -c "${config.runCommand}"`;
+
+    try {
+        const result = await runSingleTestCase(dockerCommand, inputData, timeLimit, containerName);
+        return result;
+    } catch (error) {
+        return { status: "SYSTEM_ERROR", output: error.message };
+    } finally {
+        if (fs.existsSync(tempWorkspacePath)) {
+            fs.rmSync(tempWorkspacePath, { recursive: true, force: true });
+        }
+    }
+};

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
 import Editor from "@monaco-editor/react";
 import { getProblemById } from "../api/problemApi";
-import { submitCode, getSubmissionById } from "../api/submissionApi";
+import { submitCode, getSubmissionById, runCode } from "../api/submissionApi";
 
 const DIFFICULTY_STYLES = {
   EASY: "border-gray-400 text-gray-600 bg-white",
@@ -135,11 +135,21 @@ export default function SolveProblemPage() {
   const pollIntervalRef = useRef(null);
   const pollCountRef = useRef(0);
 
+  const [activeTab, setActiveTab] = useState("TESTCASES");
+  const [customInput, setCustomInput] = useState("");
+  const [isRunning, setIsRunning] = useState(false);
+  const [runResult, setRunResult] = useState(null);
+  const [runError, setRunError] = useState("");
+
   useEffect(() => {
     const fetchProblem = async () => {
       try {
         const res = await getProblemById(id);
-        setProblem(res.data.data);
+        const problemData = res.data.data;
+        setProblem(problemData);
+        if (problemData.testCases && problemData.testCases.length > 0) {
+          setCustomInput(problemData.testCases[0].input || "");
+        }
       } catch (err) {
         setFetchError(
           err.response?.data?.message || "Failed to load problem."
@@ -162,13 +172,42 @@ export default function SolveProblemPage() {
     return () => stopPolling();
   }, [stopPolling]);
 
+  const handleRun = async () => {
+    stopPolling();
+    setIsRunning(true);
+    setRunResult(null);
+    setRunError("");
+    setResult(null);
+    setSubmitError("");
+    setActiveTab("OUTPUT");
+
+    try {
+      const res = await runCode({
+        problemId: id,
+        language,
+        code,
+        customInput
+      });
+      setRunResult(res.data.data);
+    } catch (err) {
+      setRunError(
+        err.response?.data?.message || "Run failed. Please try again."
+      );
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
   const handleSubmit = async () => {
     stopPolling();
     setIsExecuting(true);
     setResult(null);
     setSubmitError("");
+    setRunResult(null);
+    setRunError("");
     setSubmissionId(null);
     setPollingStatus("PENDING");
+    setActiveTab("OUTPUT");
     pollCountRef.current = 0;
 
     try {
@@ -383,13 +422,25 @@ export default function SolveProblemPage() {
           />
         </div>
 
-        <div className="border-b-2 border-black bg-white px-5 py-3">
+        <div className="flex gap-4 border-b-2 border-black bg-white px-5 py-3">
+          <button
+            onClick={handleRun}
+            disabled={isExecuting || isRunning}
+            className={`flex-1 cursor-pointer border-2 border-gray-300 px-6 py-3 text-sm font-black tracking-widest uppercase transition-all ${
+              isRunning || isExecuting
+                ? "cursor-not-allowed bg-gray-100 text-gray-400"
+                : "bg-white text-gray-800 hover:border-black hover:bg-gray-50"
+            }`}
+          >
+            {isRunning ? "RUNNING..." : "RUN CODE"}
+          </button>
+
           <button
             id="submit-code-btn"
             onClick={handleSubmit}
-            disabled={isExecuting}
-            className={`w-full cursor-pointer border-2 border-black px-6 py-3 text-sm font-black tracking-widest uppercase transition-all ${
-              isExecuting
+            disabled={isExecuting || isRunning}
+            className={`flex-1 cursor-pointer border-2 border-black px-6 py-3 text-sm font-black tracking-widest uppercase transition-all ${
+              isExecuting || isRunning
                 ? "cursor-not-allowed bg-gray-200 text-gray-500"
                 : "bg-black text-white hover:bg-white hover:text-black"
             }`}
@@ -425,13 +476,30 @@ export default function SolveProblemPage() {
         </div>
 
         <div className="flex flex-[3] flex-col overflow-y-auto border-t-0 bg-gray-50">
-          <div className="flex items-center gap-2 border-b border-gray-200 bg-white px-5 py-2">
-            <span className="text-xs font-black tracking-widest text-black uppercase">
-              Terminal
-            </span>
-            <span className="text-xs text-gray-400">— Output</span>
+          <div className="flex items-center gap-4 border-b border-gray-200 bg-white px-5 pt-2">
+            <button
+              onClick={() => setActiveTab("TESTCASES")}
+              className={`pb-2 text-xs font-black tracking-widest uppercase transition-colors ${
+                activeTab === "TESTCASES"
+                  ? "border-b-2 border-black text-black"
+                  : "border-b-2 border-transparent text-gray-400 hover:text-black"
+              }`}
+            >
+              Testcases
+            </button>
+            <button
+              onClick={() => setActiveTab("OUTPUT")}
+              className={`pb-2 text-xs font-black tracking-widest uppercase transition-colors ${
+                activeTab === "OUTPUT"
+                  ? "border-b-2 border-black text-black"
+                  : "border-b-2 border-transparent text-gray-400 hover:text-black"
+              }`}
+            >
+              Output
+            </button>
+            
             {isExecuting && pollingStatus === "PENDING" && (
-              <span className="ml-2 inline-flex items-center gap-1.5 border-2 border-black bg-gray-100 px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-black uppercase">
+              <span className="ml-2 mb-2 inline-flex items-center gap-1.5 border-2 border-black bg-gray-100 px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-black uppercase">
                 <span className="relative flex h-1.5 w-1.5">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-black opacity-40" />
                   <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-black" />
@@ -439,34 +507,139 @@ export default function SolveProblemPage() {
                 Polling
               </span>
             )}
-            {(result || submitError) && (
+            
+            {(result || submitError || runResult || runError) && (
               <button
                 onClick={() => {
                   setResult(null);
                   setSubmitError("");
+                  setRunResult(null);
+                  setRunError("");
                 }}
-                className="ml-auto cursor-pointer text-xs font-bold text-gray-400 transition-colors hover:text-black"
+                className="ml-auto mb-2 cursor-pointer text-xs font-bold text-gray-400 transition-colors hover:text-black"
               >
                 CLEAR
               </button>
             )}
           </div>
 
-          <div className="flex-1 overflow-y-auto p-5 font-mono text-sm">
-            {!result && !submitError && !isExecuting && (
-              <div className="flex h-full items-center justify-center">
-                <div className="text-center">
-                  <div className="mx-auto mb-4 h-10 w-10 border-2 border-gray-200 bg-white flex items-center justify-center">
-                    <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z" />
-                    </svg>
-                  </div>
-                  <p className="text-xs font-semibold tracking-wide text-gray-300 uppercase">
-                    Submit your code to see results here
-                  </p>
+          <div className="flex-1 overflow-y-auto font-mono text-sm">
+            {activeTab === "TESTCASES" ? (
+              <div className="h-full p-4">
+                <div className="mb-2 text-xs font-bold tracking-wide text-gray-500 uppercase">
+                  Custom Input
                 </div>
+                <textarea
+                  value={customInput}
+                  onChange={(e) => setCustomInput(e.target.value)}
+                  className="h-[calc(100%-24px)] w-full resize-none border-2 border-gray-200 bg-white p-3 font-mono text-sm text-black outline-none focus:border-black transition-colors"
+                  placeholder="Enter custom input here..."
+                />
               </div>
-            )}
+            ) : (
+              <div className="h-full p-5">
+                {!result && !submitError && !isExecuting && !runResult && !runError && !isRunning && (
+                  <div className="flex h-full items-center justify-center">
+                    <div className="text-center">
+                      <div className="mx-auto mb-4 h-10 w-10 border-2 border-gray-200 bg-white flex items-center justify-center">
+                        <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z" />
+                        </svg>
+                      </div>
+                      <p className="text-xs font-semibold tracking-wide text-gray-300 uppercase">
+                        Run or submit your code to see results here
+                      </p>
+                    </div>
+                  </div>
+                )}
+                
+                {isRunning && (
+                  <div className="flex h-full items-center justify-center">
+                    <div className="text-center space-y-4">
+                      <svg className="mx-auto h-8 w-8 animate-spin text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                      </svg>
+                      <div className="text-sm font-bold tracking-widest text-black uppercase">Running Code…</div>
+                    </div>
+                  </div>
+                )}
+
+                {runError && (
+                  <div className="border-2 border-black bg-gray-100 p-4">
+                    <div className="mb-1 flex items-center gap-2 text-xs font-bold tracking-wider text-red-600 uppercase">
+                      <span>⚠</span> Error
+                    </div>
+                    <p className="text-sm text-black">{runError}</p>
+                  </div>
+                )}
+
+                {runResult && (() => {
+                  let isDefaultInput = false;
+                  let isMatch = false;
+                  const defaultTestcase = problem.testCases?.[0];
+                  
+                  if (defaultTestcase) {
+                    const defaultInput = defaultTestcase.input || "";
+                    if (customInput.trim() === defaultInput.trim()) {
+                      isDefaultInput = true;
+                      isMatch = runResult.output?.trim() === defaultTestcase.expectedOutput?.trim();
+                    }
+                  }
+
+                  let verdictText = runResult.status;
+                  let verdictColor = "text-red-600";
+                  
+                  if (runResult.status === "SUCCESS") {
+                    if (isDefaultInput) {
+                      if (isMatch) {
+                        verdictText = "Accepted";
+                        verdictColor = "text-green-600";
+                      } else {
+                        verdictText = "Wrong Answer";
+                        verdictColor = "text-red-600";
+                      }
+                    } else {
+                      verdictText = "Execution Successful";
+                      verdictColor = "text-gray-500";
+                    }
+                  }
+
+                  return (
+                    <div className="space-y-4 animate-[fadeIn_0.4s_ease-out]">
+                      <div className="mb-2 text-xs font-bold tracking-wider text-gray-400 uppercase">
+                        Run Result
+                      </div>
+                      <div className="flex items-center gap-3 mb-4">
+                        <span className={`text-xl font-black tracking-tight uppercase ${verdictColor}`}>
+                          {verdictText.replace(/_/g, " ")}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-col md:flex-row gap-4">
+                        <div className="flex-1">
+                          <div className="mb-1 text-xs font-bold tracking-wider text-gray-400 uppercase">
+                            Your Output
+                          </div>
+                          <pre className={`overflow-x-auto border-2 border-gray-200 bg-white p-4 text-sm ${runResult.status === "SUCCESS" ? "text-gray-900" : "text-red-600"}`}>
+                            {runResult.output || "No output"}
+                          </pre>
+                        </div>
+
+                        {runResult.status === "SUCCESS" && isDefaultInput && (
+                          <div className="flex-1">
+                            <div className="mb-1 text-xs font-bold tracking-wider text-gray-400 uppercase">
+                              Expected Output
+                            </div>
+                            <pre className="overflow-x-auto border-2 border-gray-200 bg-white p-4 text-sm text-gray-900">
+                              {defaultTestcase.expectedOutput}
+                            </pre>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
 
             {isExecuting && (
               <div className="flex h-full items-center justify-center">
@@ -602,6 +775,8 @@ export default function SolveProblemPage() {
                 </div>
               );
             })()}
+              </div>
+            )}
           </div>
         </div>
       </main>
