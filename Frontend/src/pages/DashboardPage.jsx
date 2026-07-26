@@ -56,7 +56,6 @@ export default function DashboardPage() {
 
   return (
     <div className="mx-auto min-h-[calc(100vh-65px)] max-w-5xl px-6 py-10">
-      {/* Header */}
       <div className="mb-8 flex items-end justify-between border-b-2 border-black pb-4">
         <div>
           <h1 className="text-3xl font-black tracking-tight text-black">
@@ -86,7 +85,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Loading state */}
       {loading && (
         <div className="flex items-center justify-center py-20">
           <div className="text-sm font-semibold tracking-wide text-gray-400 uppercase">
@@ -95,14 +93,12 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Error state */}
       {error && (
         <div className="border-2 border-black bg-gray-100 px-5 py-4 text-sm font-medium text-black">
           {error}
         </div>
       )}
 
-      {/* Empty state */}
       {!loading && !error && problems.length === 0 && (
         <div className="border-2 border-dashed border-gray-300 py-16 text-center">
           <p className="text-lg font-bold text-gray-400">No problems yet</p>
@@ -112,7 +108,6 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Problems table */}
       {!loading && !error && problems.length > 0 && (
         <div className="border-2 border-black">
           <table className="w-full border-collapse text-sm">
@@ -174,7 +169,6 @@ export default function DashboardPage() {
           </table>
         </div>
       )}
-      {/* Delete Confirmation Modal */}
       {deleteTarget && (
         <DeleteConfirmModal
           problemTitle={deleteTarget.title}

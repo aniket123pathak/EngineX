@@ -43,32 +43,49 @@ const LANGUAGE_CONFIG = {
  * @returns {Promise<Object>} - Resolves with the container status and raw string output
  */
 const runSingleTestCase = (dockerCommand, inputData, timeLimit, containerName) => {
-    return new Promise((resolve, reject) => {
-        
-        const childProcess = exec(dockerCommand, { timeout: timeLimit }, (error, stdout, stderr) => {
-            
-            // 🛡️ THE ASSASSIN: Detect if Node.js forcefully killed Docker because of the time limit
-            if (error && error.killed) {
-                // Fire a background command to instantly nuke the frozen container
-                exec(`docker rm -f ${containerName}`, () => {}); 
-                
-                resolve({ status: "EXECUTION_ERROR", output: "TIME_LIMIT_EXCEEDED" });
-                return;
+    return new Promise((resolve) => {
+        let isFinished = false;
+
+        // ⏱️ THE STOPWATCH (For TLE)
+        const timer = setTimeout(() => {
+            if (isFinished) return;
+            isFinished = true;
+            exec(`docker rm -f ${containerName}`, () => {}); 
+            resolve({ status: "EXECUTION_ERROR", output: "TIME_LIMIT_EXCEEDED" });
+        }, timeLimit);
+
+        // 🐳 DOCKER EXECUTION
+        const childProcess = exec(dockerCommand, (error, stdout, stderr) => {
+            if (isFinished) return; 
+            isFinished = true;
+            clearTimeout(timer);
+
+            // 1. Memory Limit Exceeded (Docker OOM Killer Exit Code 137)
+            if (error && error.code === 137) {
+                return resolve({ status: "EXECUTION_ERROR", output: "MEMORY_LIMIT_EXCEEDED" });
             }
 
-            // Runtime Error inside the user's code
+            // 2. Catch C++ memory allocation exceptions as MLE
+            if (stderr && stderr.includes("bad_alloc")) {
+                return resolve({ status: "EXECUTION_ERROR", output: "MEMORY_LIMIT_EXCEEDED" });
+            }
+
+            // 3. Compilation Errors (g++ uses "error:" for syntax issues)
+            if (stderr && stderr.toLowerCase().includes("error:")) {
+                return resolve({ status: "COMPILATION_ERROR", output: stderr.trim() });
+            }
+
+            // 4. True Runtime Errors (Segfaults, div by zero, etc.)
             if (stderr) {
-                resolve({ status: "RUNTIME_ERROR", output: stderr.trim() });
-                return; 
+                return resolve({ status: "RUNTIME_ERROR", output: stderr.trim() });
             }
 
-            // External System/Docker failure (Out of Memory, etc.)
+            // 5. Other Docker/System Errors
             if (error) {
-                resolve({ status: "EXECUTION_ERROR", output: error.message });
-                return;
+                return resolve({ status: "SYSTEM_ERROR", output: error.message });
             }
-
-            // Clean Execution
+            
+            // 6. Clean Execution
             resolve({ status: "SUCCESS", output: stdout.trim() });
         });
 
@@ -121,29 +138,35 @@ export const evaluateSubmission = async (problemSlug, userCode, language = "pyth
             const inputData = fs.readFileSync(path.join(problemWorkspacePath, inFile), "utf-8");
             const expectedOutput = fs.readFileSync(path.join(problemWorkspacePath, outFile), "utf-8").replace(/\r/g, "").trim();
 
-            // 3. Generate a unique name for this specific test case's container
+            // Generate a unique name
             const containerName = `enginex-${submissionId}-${testCaseNumber}`;
 
-            // 4. THE MAGIC LINE: Dynamically inject the Image, Run Command, and the unique --name
-            const dockerCommand = `docker run --name ${containerName} -i --rm --network none --memory="${memoryLimit}m" -v "${tempWorkspacePath}:/app" -w /app ${config.image} sh -c "${config.runCommand}"`;
+            // Add --name ${containerName} to the command
+            const dockerCommand = `docker run --name ${containerName} -i --rm --network none --memory="${memoryLimit}m" --memory-swap="${memoryLimit}m" -v "${tempWorkspacePath}:/app" -w /app ${config.image} sh -c "${config.runCommand}"`;
             
-            // 5. Pass the containerName into the test runner
             const result = await runSingleTestCase(dockerCommand, inputData, timeLimit, containerName);
 
             let verdict = "ACCEPTED";
             const cleanedOutput = result.output.replace(/\r/g, "").trim();
             
-            if (result.status === "RUNTIME_ERROR") {
+            // FIX 2: Map the new COMPILATION_ERROR status
+            if (result.status === "COMPILATION_ERROR") {
+                verdict = "COMPILATION_ERROR";
+                overallStatus = "COMPILATION_ERROR";
+            } else if (result.status === "RUNTIME_ERROR") {
                 verdict = "RUNTIME_ERROR";
                 overallStatus = "RUNTIME_ERROR";
             } else if (result.status === "EXECUTION_ERROR") {
-                verdict = result.output === "TIME_LIMIT_EXCEEDED" ? "TIME_LIMIT_EXCEEDED" : "MEMORY_LIMIT_EXCEEDED"; 
+                verdict = result.output; // This will be TLE or MLE
                 overallStatus = verdict;
+            } else if (result.status === "SYSTEM_ERROR") {
+                verdict = "SYSTEM_ERROR";
+                overallStatus = "SYSTEM_ERROR";
             } else if (cleanedOutput !== expectedOutput) {
                 verdict = "WRONG_ANSWER";
                 if (overallStatus === "ACCEPTED") overallStatus = "WRONG_ANSWER";
             }
-
+            
             testResults.push({
                 testCase: testCaseNumber,
                 verdict,

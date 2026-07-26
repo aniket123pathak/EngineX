@@ -36,7 +36,6 @@ export default function RegisterPage() {
   return (
     <div className="flex min-h-[calc(100vh-65px)] items-center justify-center bg-white px-4">
       <div className="w-full max-w-md border-2 border-black bg-white p-8">
-        {/* Header */}
         <h1 className="mb-1 text-3xl font-black tracking-tight text-black">
           Create Account
         </h1>
@@ -44,7 +43,6 @@ export default function RegisterPage() {
           Join EngineX and start solving.
         </p>
 
-        {/* Error / Success banners */}
         {error && (
           <div className="mb-4 border-2 border-black bg-gray-100 px-4 py-3 text-sm font-medium text-black">
             {error}
@@ -56,9 +54,7 @@ export default function RegisterPage() {
           </div>
         )}
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Username */}
           <div>
             <label
               htmlFor="username"
@@ -79,7 +75,6 @@ export default function RegisterPage() {
             />
           </div>
 
-          {/* Email */}
           <div>
             <label
               htmlFor="email"
@@ -99,7 +94,6 @@ export default function RegisterPage() {
             />
           </div>
 
-          {/* Password */}
           <div>
             <label
               htmlFor="password"
@@ -120,7 +114,6 @@ export default function RegisterPage() {
             />
           </div>
 
-          {/* Submit */}
           <button
             type="submit"
             disabled={loading}
@@ -130,7 +123,6 @@ export default function RegisterPage() {
           </button>
         </form>
 
-        {/* Footer link */}
         <p className="mt-6 text-center text-sm text-gray-500">
           Already have an account?{" "}
           <Link to="/login" className="font-bold text-black underline">

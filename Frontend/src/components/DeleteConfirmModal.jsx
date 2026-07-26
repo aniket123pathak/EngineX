@@ -1,10 +1,5 @@
 import { useState } from "react";
 
-/**
- * Brutalist confirmation modal for permanent problem deletion.
- *
- * @param {{ problemTitle: string, onConfirm: () => Promise<void>, onCancel: () => void }} props
- */
 export default function DeleteConfirmModal({ problemTitle, onConfirm, onCancel }) {
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
@@ -23,7 +18,6 @@ export default function DeleteConfirmModal({ problemTitle, onConfirm, onCancel }
   };
 
   return (
-    /* Backdrop */
     <div
       id="delete-confirm-backdrop"
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
@@ -31,17 +25,14 @@ export default function DeleteConfirmModal({ problemTitle, onConfirm, onCancel }
         if (e.target === e.currentTarget && !deleting) onCancel();
       }}
     >
-      {/* Modal */}
       <div
         id="delete-confirm-modal"
         className="w-full max-w-md border-4 border-black bg-white p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]"
       >
-        {/* Title */}
         <h2 className="text-xl font-black tracking-tight text-black uppercase">
           ⚠ Warning: Permanent Deletion
         </h2>
 
-        {/* Body */}
         <p className="mt-4 border-l-4 border-black pl-4 text-sm leading-relaxed text-gray-700">
           This will destroy{" "}
           <span className="font-bold text-black">"{problemTitle}"</span> from
@@ -49,7 +40,6 @@ export default function DeleteConfirmModal({ problemTitle, onConfirm, onCancel }
           <span className="font-black text-black">Proceed?</span>
         </p>
 
-        {/* Error display */}
         {error && (
           <div
             id="delete-error-message"
@@ -59,7 +49,6 @@ export default function DeleteConfirmModal({ problemTitle, onConfirm, onCancel }
           </div>
         )}
 
-        {/* Actions */}
         <div className="mt-8 flex items-center justify-end gap-3">
           <button
             id="delete-cancel-btn"

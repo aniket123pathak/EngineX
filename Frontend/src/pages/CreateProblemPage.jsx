@@ -19,7 +19,6 @@ export default function CreateProblemPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  /* ── Form field handlers ── */
   const handleChange = (e) => {
     const { name, value, type } = e.target;
     setForm((prev) => ({
@@ -28,7 +27,6 @@ export default function CreateProblemPage() {
     }));
   };
 
-  /* ── Test case handlers ── */
   const handleTestCaseChange = (index, field, value) => {
     setTestCases((prev) =>
       prev.map((tc, i) =>
@@ -46,7 +44,6 @@ export default function CreateProblemPage() {
     setTestCases((prev) => prev.filter((_, i) => i !== index));
   };
 
-  /* ── Submit ── */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -75,7 +72,6 @@ export default function CreateProblemPage() {
 
   return (
     <div className="mx-auto min-h-[calc(100vh-65px)] max-w-3xl px-6 py-10">
-      {/* Breadcrumb */}
       <Link
         to="/dashboard"
         className="mb-6 inline-block text-sm font-semibold text-gray-500 transition-colors hover:text-black"
@@ -83,7 +79,6 @@ export default function CreateProblemPage() {
         ← Back to Dashboard
       </Link>
 
-      {/* Page header */}
       <div className="mb-8 border-b-2 border-black pb-4">
         <h1 className="text-3xl font-black tracking-tight text-black">
           Create New Problem
@@ -93,7 +88,6 @@ export default function CreateProblemPage() {
         </p>
       </div>
 
-      {/* Error */}
       {error && (
         <div className="mb-6 border-2 border-black bg-gray-100 px-5 py-4 text-sm font-medium text-black">
           {error}
@@ -101,7 +95,6 @@ export default function CreateProblemPage() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* ── Title ── */}
         <div>
           <label
             htmlFor="title"
@@ -121,7 +114,6 @@ export default function CreateProblemPage() {
           />
         </div>
 
-        {/* ── Description ── */}
         <div>
           <label
             htmlFor="description"
@@ -141,9 +133,7 @@ export default function CreateProblemPage() {
           />
         </div>
 
-        {/* ── Difficulty / Time / Memory row ── */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          {/* Difficulty */}
           <div>
             <label
               htmlFor="difficulty"
@@ -164,7 +154,6 @@ export default function CreateProblemPage() {
             </select>
           </div>
 
-          {/* Time Limit */}
           <div>
             <label
               htmlFor="timeLimit"
@@ -184,7 +173,6 @@ export default function CreateProblemPage() {
             />
           </div>
 
-          {/* Memory Limit */}
           <div>
             <label
               htmlFor="memoryLimit"
@@ -205,9 +193,6 @@ export default function CreateProblemPage() {
           </div>
         </div>
 
-        {/* ═══════════════════════════════════════════════ */}
-        {/* ── Test Cases Section ── */}
-        {/* ═══════════════════════════════════════════════ */}
         <div>
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-xs font-bold tracking-wider text-gray-600 uppercase">
@@ -225,13 +210,11 @@ export default function CreateProblemPage() {
           <div className="space-y-4">
             {testCases.map((tc, index) => (
               <div key={index} className="border-2 border-black">
-                {/* Test case header */}
                 <div className="flex items-center justify-between border-b-2 border-black bg-gray-100 px-4 py-2">
                   <span className="text-xs font-bold tracking-wide text-black uppercase">
                     Test Case {index + 1}
                   </span>
                   <div className="flex items-center gap-4">
-                    {/* isHidden checkbox */}
                     <label className="flex cursor-pointer items-center gap-1.5 text-xs font-semibold text-gray-600">
                       <input
                         type="checkbox"
@@ -243,7 +226,6 @@ export default function CreateProblemPage() {
                       />
                       Hidden
                     </label>
-                    {/* Remove button */}
                     {testCases.length > 1 && (
                       <button
                         type="button"
@@ -256,7 +238,6 @@ export default function CreateProblemPage() {
                   </div>
                 </div>
 
-                {/* Input / Expected Output */}
                 <div className="grid grid-cols-1 md:grid-cols-2">
                   <div className="border-b border-gray-200 p-4 md:border-r md:border-b-0">
                     <label className="mb-1.5 block text-xs font-bold tracking-wide text-gray-500 uppercase">
@@ -269,7 +250,7 @@ export default function CreateProblemPage() {
                       onChange={(e) =>
                         handleTestCaseChange(index, "input", e.target.value)
                       }
-                      placeholder="e.g. 5&#10;1 2 3 4 5"
+                      placeholder={"e.g. 5\n1 2 3 4 5"}
                       className="w-full resize-y border-2 border-gray-300 bg-white px-3 py-2 font-mono text-sm text-black placeholder-gray-400 outline-none transition-shadow focus:border-black focus:shadow-[3px_3px_0_0_#000]"
                     />
                   </div>
@@ -294,7 +275,6 @@ export default function CreateProblemPage() {
           </div>
         </div>
 
-        {/* ── Submit ── */}
         <div className="border-t-2 border-black pt-6">
           <button
             type="submit"

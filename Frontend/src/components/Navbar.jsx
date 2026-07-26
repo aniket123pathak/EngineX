@@ -13,12 +13,10 @@ export default function Navbar() {
   return (
     <nav className="border-b-2 border-black bg-white">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-        {/* Logo */}
         <Link to="/" className="text-2xl font-black tracking-tight text-black uppercase">
           EngineX
         </Link>
 
-        {/* Navigation links */}
         <div className="flex items-center gap-6">
           {user ? (
             <>

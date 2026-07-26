@@ -43,7 +43,6 @@ export default function ProblemDetailPage() {
     fetchProblem();
   }, [id]);
 
-  /* ── Loading ── */
   if (loading) {
     return (
       <div className="flex min-h-[calc(100vh-65px)] items-center justify-center">
@@ -54,7 +53,6 @@ export default function ProblemDetailPage() {
     );
   }
 
-  /* ── Error ── */
   if (error) {
     return (
       <div className="mx-auto max-w-3xl px-6 py-10">
@@ -71,10 +69,8 @@ export default function ProblemDetailPage() {
     );
   }
 
-  /* ── Problem loaded ── */
   return (
     <div className="mx-auto min-h-[calc(100vh-65px)] max-w-4xl px-6 py-10">
-      {/* Breadcrumb */}
       <Link
         to="/dashboard"
         className="mb-6 inline-block text-sm font-semibold text-gray-500 transition-colors hover:text-black"
@@ -82,7 +78,6 @@ export default function ProblemDetailPage() {
         ← Back to Problems
       </Link>
 
-      {/* ── Problem Header ── */}
       <div className="mb-8 border-2 border-black p-6">
         <div className="mb-3 flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-black tracking-tight text-black">
@@ -91,7 +86,6 @@ export default function ProblemDetailPage() {
           <DifficultyBadge difficulty={problem.difficulty} />
         </div>
 
-        {/* Constraints bar */}
         <div className="flex gap-6 text-xs text-gray-500">
           <div>
             <span className="font-bold tracking-wide text-gray-700 uppercase">
@@ -108,7 +102,6 @@ export default function ProblemDetailPage() {
         </div>
       </div>
 
-      {/* ── Description ── */}
       <div className="mb-8">
         <h2 className="mb-3 text-xs font-bold tracking-wider text-gray-500 uppercase">
           Description
@@ -118,7 +111,6 @@ export default function ProblemDetailPage() {
         </div>
       </div>
 
-      {/* ── Test Cases ── */}
       {problem.testCases && problem.testCases.length > 0 && (
         <div className="mb-8">
           <h2 className="mb-4 text-xs font-bold tracking-wider text-gray-500 uppercase">
@@ -127,12 +119,10 @@ export default function ProblemDetailPage() {
           <div className="space-y-4">
             {problem.testCases.map((tc, i) => (
               <div key={i} className="border-2 border-black">
-                {/* Test case header */}
                 <div className="border-b-2 border-black bg-black px-4 py-2 text-xs font-bold tracking-wider text-white uppercase">
                   Test Case {i + 1}
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2">
-                  {/* Input */}
                   <div className="border-b border-gray-200 p-4 md:border-r md:border-b-0">
                     <div className="mb-2 text-xs font-bold tracking-wide text-gray-500 uppercase">
                       Input
@@ -141,7 +131,6 @@ export default function ProblemDetailPage() {
                       {tc.input}
                     </pre>
                   </div>
-                  {/* Expected Output */}
                   <div className="p-4">
                     <div className="mb-2 text-xs font-bold tracking-wide text-gray-500 uppercase">
                       Expected Output
@@ -157,7 +146,6 @@ export default function ProblemDetailPage() {
         </div>
       )}
 
-      {/* ── Open Workspace ── */}
       <div className="border-2 border-black bg-white px-6 py-8 text-center">
         <Link
           to={`/problems/${id}/solve`}

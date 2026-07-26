@@ -20,7 +20,6 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
 
-    // Determine whether the user typed an email or a username
     const isEmail = form.identifier.includes("@");
     const payload = {
       ...(isEmail ? { email: form.identifier } : { username: form.identifier }),
@@ -29,7 +28,6 @@ export default function LoginPage() {
 
     try {
       const res = await loginUser(payload);
-      // Save user data into auth context
       login(res.data.data?.user ?? res.data.data);
       navigate("/dashboard");
     } catch (err) {
@@ -44,7 +42,6 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-[calc(100vh-65px)] items-center justify-center bg-white px-4">
       <div className="w-full max-w-md border-2 border-black bg-white p-8">
-        {/* Header */}
         <h1 className="mb-1 text-3xl font-black tracking-tight text-black">
           Welcome Back
         </h1>
@@ -52,16 +49,13 @@ export default function LoginPage() {
           Log in to your EngineX account.
         </p>
 
-        {/* Error banner */}
         {error && (
           <div className="mb-4 border-2 border-black bg-gray-100 px-4 py-3 text-sm font-medium text-black">
             {error}
           </div>
         )}
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Email / Username */}
           <div>
             <label
               htmlFor="identifier"
@@ -81,7 +75,6 @@ export default function LoginPage() {
             />
           </div>
 
-          {/* Password */}
           <div>
             <label
               htmlFor="password"
@@ -102,7 +95,6 @@ export default function LoginPage() {
             />
           </div>
 
-          {/* Submit */}
           <button
             type="submit"
             disabled={loading}
@@ -112,7 +104,6 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Footer link */}
         <p className="mt-6 text-center text-sm text-gray-500">
           Don&apos;t have an account?{" "}
           <Link to="/register" className="font-bold text-black underline">

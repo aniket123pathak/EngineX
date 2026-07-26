@@ -2,9 +2,6 @@ import { createContext, useContext, useState, useMemo } from "react";
 
 const AuthContext = createContext(null);
 
-/**
- * Provides authentication state and helpers to the component tree.
- */
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
 
@@ -28,9 +25,6 @@ export function AuthProvider({ children }) {
   );
 }
 
-/**
- * Hook to consume the auth context.
- */
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {
