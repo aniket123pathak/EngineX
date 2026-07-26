@@ -18,6 +18,12 @@ export default function Navbar() {
         </Link>
 
         <div className="flex items-center gap-6">
+          <Link
+            to="/leaderboard"
+            className="text-sm font-semibold text-gray-700 transition-colors hover:text-black"
+          >
+            Leaderboard
+          </Link>
           {user ? (
             <>
               <Link

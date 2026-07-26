@@ -128,3 +128,56 @@ export const getUserProfile = asyncHandler(async (req, res) => {
         }, "User profile fetched successfully")
     );
 });
+
+export const getGlobalLeaderboard = asyncHandler(async (req, res) => {
+    const leaderboard = await Submission.aggregate([
+        // 1. Only look at ACCEPTED submissions
+        { $match: { status: "ACCEPTED" } },
+        
+        // 2. Group by user AND problem to ensure we only count unique problems
+        { 
+            $group: { 
+                _id: { user: "$user", problem: "$problem" } 
+            } 
+        },
+        
+        // 3. Group by user to count their total unique solved problems
+        { 
+            $group: { 
+                _id: "$_id.user", 
+                totalSolved: { $sum: 1 } 
+            } 
+        },
+        
+        // 4. Sort by highest totalSolved first
+        { $sort: { totalSolved: -1 } },
+        
+        // 5. Limit to Top 100 to keep the API fast
+        { $limit: 100 },
+        
+        // 6. Join with the Users collection to get their usernames
+        {
+            $lookup: {
+                from: "users", // The exact name of your MongoDB users collection
+                localField: "_id",
+                foreignField: "_id",
+                as: "userInfo"
+            }
+        },
+        
+        // 7. Flatten the userInfo array and format the final output
+        { $unwind: "$userInfo" },
+        {
+            $project: {
+                _id: 0,
+                userId: "$_id",
+                username: "$userInfo.username",
+                totalSolved: 1
+            }
+        }
+    ]);
+
+    return res.status(200).json(
+        new ApiResponse(200, leaderboard, "Leaderboard fetched successfully")
+    );
+});

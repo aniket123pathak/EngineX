@@ -9,6 +9,7 @@ import CreateProblemPage from "./pages/CreateProblemPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
 import UserProfilePage from "./pages/UserProfilePage";
+import LeaderboardPage from "./pages/LeaderboardPage";
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/leaderboard" element={<LeaderboardPage />} />
         <Route
           path="/dashboard"
           element={
