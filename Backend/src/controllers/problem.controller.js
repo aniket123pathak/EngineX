@@ -4,6 +4,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { Problem } from "../models/problem.model.js";
+import jwt from "jsonwebtoken";
 import fs from "fs";
 import path from "path";
 export const createProblem = asyncHandler(async (req, res) => {
@@ -12,6 +13,13 @@ export const createProblem = asyncHandler(async (req, res) => {
     if (!title || !description || !testCases || testCases.length === 0) {
         throw new ApiError(400, "Title, description, and at least one test case are required");
     }    
+    const formattedTestCases = testCases.map(tc => ({
+        input: tc.input,
+        expectedOutput: tc.expectedOutput,
+        isHidden: tc.isHidden === true || tc.hidden === true // Catch both just in case!
+    }));
+    let enforcePrivate = isPrivate === true; 
+    
     if (req.user.role !== "ADMIN") {
         enforcePrivate = true; 
     }
@@ -22,7 +30,7 @@ export const createProblem = asyncHandler(async (req, res) => {
         difficulty,
         timeLimit,
         memoryLimit,
-        testCases,
+        testCases: formattedTestCases,
         author: req.user._id,
         isPrivate: enforcePrivate, // Apply the secure flag
     });
@@ -57,20 +65,43 @@ export const getAllProblems = asyncHandler(async (req, res) => {
     );
 });
 export const getProblemById = asyncHandler(async (req, res) => {
-    const { problemId } = req.params;
-    const userId = req.user._id;
-
-    const problem = await Problem.findById(problemId).select("-testCases");
-    if (!problem) throw new ApiError(404, "Problem not found");
-
-    if (problem.author.toString() === userId.toString()) {
-        return res.status(200).json(new ApiResponse(200, problem, "Problem fetched"));
+    const problemId = req.params.problemId || req.params.id;
+    
+    if (!problemId || problemId === "undefined") {
+        throw new ApiError(400, "Invalid Problem ID received.");
     }
 
+    let userId = req.user?._id; 
+    if (!userId) {
+        try {
+            const token = req.cookies?.accessToken || req.header("Authorization")?.replace("Bearer ", "");
+            if (token) {
+                const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+                userId = decodedToken?._id;
+            }
+        } catch (error) {
+            // Ignore errors
+        }
+    }
+
+    // 1. REMOVE .select("-testCases") so we actually get the test cases from MongoDB
+    const problem = await Problem.findById(problemId);
+    
+    if (!problem) {
+        throw new ApiError(404, "Problem not found in the database.");
+    }
+
+    const isAuthor = userId && problem.author.toString() === userId.toString();
+
+    // SECURITY CHECK
     if (problem.isPrivate || problem.publicAfter > new Date()) {
+        if (!userId) {
+            throw new ApiError(401, "You must be logged in to view this private contest problem.");
+        }
+
         const contest = await Contest.findOne({ problems: problemId });
 
-        if (contest) {
+        if (contest && !isAuthor) {
             const currentTime = new Date();
             
             if (currentTime < contest.startTime) {
@@ -86,13 +117,23 @@ export const getProblemById = asyncHandler(async (req, res) => {
                     throw new ApiError(403, "You must register for the private contest to view this problem.");
                 }
             }
-        } else {
+        } else if (!contest && !isAuthor) {
             throw new ApiError(403, "This problem is currently hidden by the author.");
         }
     }
 
+    // 2. THE SMART FILTER: Protect the hidden test cases!
+    let sanitizedProblem = problem.toObject(); 
+    
+    if (!isAuthor && sanitizedProblem.testCases) {
+        // MATCH YOUR SCHEMA: Use tc.isHidden!
+        sanitizedProblem.testCases = sanitizedProblem.testCases.filter(
+            (tc) => tc.isHidden !== true && tc.isHidden !== "true"
+        );
+    }
+
     return res.status(200).json(
-        new ApiResponse(200, problem, "Problem fetched successfully")
+        new ApiResponse(200, sanitizedProblem, "Problem fetched successfully")
     );
 });
 export const deleteProblem = asyncHandler(async (req, res) => {

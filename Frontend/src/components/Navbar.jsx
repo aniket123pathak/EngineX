@@ -24,6 +24,12 @@ export default function Navbar() {
           >
             Leaderboard
           </Link>
+          <Link
+            to="/contests"
+            className="text-sm font-semibold text-gray-700 transition-colors hover:text-black"
+          >
+            Contests
+          </Link>
           {user ? (
             <>
               <Link

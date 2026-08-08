@@ -8,12 +8,16 @@ import SolveProblemPage from "./pages/SolveProblemPage";
 import CreateProblemPage from "./pages/CreateProblemPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminRoute from "./components/AdminRoute";
+import { Toaster } from "react-hot-toast";
 import UserProfilePage from "./pages/UserProfilePage";
 import LeaderboardPage from "./pages/LeaderboardPage";
+import ContestsPage from "./pages/ContestsPage";
+import ContestDetailPage from "./pages/ContestDetailPage";
 
 export default function App() {
   return (
     <div className="min-h-screen bg-white font-sans text-black antialiased">
+      <Toaster position="top-right" />
       <Navbar />
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
@@ -25,6 +29,22 @@ export default function App() {
           element={
             <ProtectedRoute>
               <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/contests"
+          element={
+            <ProtectedRoute>
+              <ContestsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/contests/:id"
+          element={
+            <ProtectedRoute>
+              <ContestDetailPage />
             </ProtectedRoute>
           }
         />
@@ -53,11 +73,11 @@ export default function App() {
           }
         />
         <Route
-          path="/admin/problems/create"
+          path="/create-problem"
           element={
-            <AdminRoute>
+            <ProtectedRoute>
               <CreateProblemPage />
-            </AdminRoute>
+            </ProtectedRoute>
           }
         />
       </Routes>
