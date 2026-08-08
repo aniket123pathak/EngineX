@@ -6,6 +6,8 @@ import { Problem } from "../models/problem.model.js";
 import { evaluateSubmission } from "../utils/codeRunner.js"; 
 import { addJobToQueue } from "../queue/localQueue.js";
 import { runCodeSnippet } from "../utils/codeRunner.js"; 
+import { Contest } from "../models/contest.model.js";
+import { ContestRegistration } from "../models/contestRegistration.model.js";
 
 export const submitCode = asyncHandler(async (req, res) => {
     const { problemId, code, language } = req.body;
@@ -16,6 +18,32 @@ export const submitCode = asyncHandler(async (req, res) => {
     if (!problem) {
         throw new ApiError(404, "Problem not found");
     }
+
+    if (problem.author.toString() !== req.user._id.toString()) {
+        if (problem.isPrivate || problem.publicAfter > new Date()) {
+            const contest = await Contest.findOne({ problems: problemId });
+            
+            if (contest) {
+                const currentTime = new Date();
+                if (currentTime < contest.startTime) {
+                    throw new ApiError(403, "You cannot submit code before the contest starts.");
+                }
+                
+                if (contest.visibility === "PRIVATE") {
+                    const isRegistered = await ContestRegistration.findOne({
+                        user: req.user._id,
+                        contest: contest._id
+                    });
+                    if (!isRegistered) {
+                        throw new ApiError(403, "You are not registered for this private contest.");
+                    }
+                }
+            } else {
+                throw new ApiError(403, "This problem is currently not accepting submissions.");
+            }
+        }
+    }
+
     const submission = await Submission.create({
         user: req.user._id, 
         problem: problemId,

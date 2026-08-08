@@ -1,4 +1,5 @@
-
+import { Contest } from "../models/contest.model.js";
+import { ContestRegistration } from "../models/contestRegistration.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
@@ -51,17 +52,42 @@ export const getAllProblems = asyncHandler(async (req, res) => {
     );
 });
 export const getProblemById = asyncHandler(async (req, res) => {
-    const { id } = req.params;
-    const problem = await Problem.findById(id);
-    if (!problem) {
-        throw new ApiError(404, "Problem not found");
+    const { problemId } = req.params;
+    const userId = req.user._id;
+
+    const problem = await Problem.findById(problemId).select("-testCases");
+    if (!problem) throw new ApiError(404, "Problem not found");
+
+    if (problem.author.toString() === userId.toString()) {
+        return res.status(200).json(new ApiResponse(200, problem, "Problem fetched"));
     }
-    const problemObj = problem.toObject();
-    problemObj.testCases = problemObj.testCases.filter(
-        (testCase) => testCase.isHidden === false
-    );
+
+    if (problem.isPrivate || problem.publicAfter > new Date()) {
+        const contest = await Contest.findOne({ problems: problemId });
+
+        if (contest) {
+            const currentTime = new Date();
+            
+            if (currentTime < contest.startTime) {
+                throw new ApiError(403, "This problem is locked until the contest begins.");
+            }
+
+            if (contest.visibility === "PRIVATE") {
+                const isRegistered = await ContestRegistration.findOne({
+                    user: userId,
+                    contest: contest._id
+                });
+                if (!isRegistered) {
+                    throw new ApiError(403, "You must register for the private contest to view this problem.");
+                }
+            }
+        } else {
+            throw new ApiError(403, "This problem is currently hidden by the author.");
+        }
+    }
+
     return res.status(200).json(
-        new ApiResponse(200, problemObj, "Problem fetched successfully")
+        new ApiResponse(200, problem, "Problem fetched successfully")
     );
 });
 export const deleteProblem = asyncHandler(async (req, res) => {
