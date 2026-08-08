@@ -9,5 +9,5 @@ router.route("/:id").get(getProblemById);
 router.route("/:id")
     .get(getProblemById)
     .delete(verifyJWT, deleteProblem);
-router.route("/create").post(verifyJWT, isAdmin, createProblem);
+router.route("/create").post(verifyJWT, createProblem);
 export default router;

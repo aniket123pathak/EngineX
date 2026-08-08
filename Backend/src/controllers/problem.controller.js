@@ -8,9 +8,14 @@ import fs from "fs";
 import path from "path";
 export const createProblem = asyncHandler(async (req, res) => {
     const { title, description, difficulty, timeLimit, memoryLimit, testCases, isPrivate } = req.body;
+    
     if (!title || !description || !testCases || testCases.length === 0) {
         throw new ApiError(400, "Title, description, and at least one test case are required");
+    }    
+    if (req.user.role !== "ADMIN") {
+        enforcePrivate = true; 
     }
+
     const problem = await Problem.create({
         title,
         description,
@@ -19,7 +24,7 @@ export const createProblem = asyncHandler(async (req, res) => {
         memoryLimit,
         testCases,
         author: req.user._id,
-        isPrivate: isPrivate === true ? true : false,
+        isPrivate: enforcePrivate, // Apply the secure flag
     });
 
     try {
@@ -38,7 +43,7 @@ export const createProblem = asyncHandler(async (req, res) => {
     }
     
     return res.status(201).json(
-        new ApiResponse(201, problem, "Problem created successfully and synced to File System")
+        new ApiResponse(201, problem, "Problem created successfully")
     );
 });
 export const getAllProblems = asyncHandler(async (req, res) => {
