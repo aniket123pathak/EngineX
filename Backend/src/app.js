@@ -16,7 +16,9 @@ app.get("/health", (req, res) => {
 import userRouter from "./routes/user.route.js";
 import problemRouter from "./routes/problem.route.js";
 import submissionRouter from "./routes/submission.route.js";
+import contestRouter from "./routes/contest.route.js";
 app.use("/api/v1/users", userRouter);
 app.use("/api/v1/problems", problemRouter);
 app.use("/api/v1/submissions", submissionRouter);
+app.use("/api/v1/contests", contestRouter);
 export { app };

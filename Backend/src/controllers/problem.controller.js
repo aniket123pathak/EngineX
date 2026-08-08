@@ -6,7 +6,7 @@ import { Problem } from "../models/problem.model.js";
 import fs from "fs";
 import path from "path";
 export const createProblem = asyncHandler(async (req, res) => {
-    const { title, description, difficulty, timeLimit, memoryLimit, testCases } = req.body;
+    const { title, description, difficulty, timeLimit, memoryLimit, testCases, isPrivate } = req.body;
     if (!title || !description || !testCases || testCases.length === 0) {
         throw new ApiError(400, "Title, description, and at least one test case are required");
     }
@@ -18,7 +18,9 @@ export const createProblem = asyncHandler(async (req, res) => {
         memoryLimit,
         testCases,
         author: req.user._id,
+        isPrivate: isPrivate === true ? true : false,
     });
+
     try {
         const problemFolder = path.resolve("problems", problem._id.toString());
         if (!fs.existsSync(problemFolder)) {
@@ -33,12 +35,17 @@ export const createProblem = asyncHandler(async (req, res) => {
         await Problem.findByIdAndDelete(problem._id);
         throw new ApiError(500, "Failed to write test cases to file system");
     }
+    
     return res.status(201).json(
         new ApiResponse(201, problem, "Problem created successfully and synced to File System")
     );
 });
 export const getAllProblems = asyncHandler(async (req, res) => {
-    const problems = await Problem.find({}).select("title difficulty timeLimit memoryLimit");
+    const currentTime = new Date();
+    const problems = await Problem.find({
+        isPrivate: false,
+        publicAfter: { $lte: currentTime } 
+    }).select("-testCases");
     return res.status(200).json(
         new ApiResponse(200, problems, "Problem list fetched successfully")
     );

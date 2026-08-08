@@ -40,6 +40,14 @@ const problemSchema = new Schema(
             type: Number,
             default: 256, 
         },
+        isPrivate: {
+            type: Boolean,
+            default: false
+        },
+        publicAfter: {
+            type: Date,
+            default: Date.now 
+        },
         author: {
             type: Schema.Types.ObjectId,
             ref: "User", 
