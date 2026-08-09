@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import Editor from "@monaco-editor/react";
 import { getProblemById } from "../api/problemApi";
 import { submitCode, getSubmissionById, runCode } from "../api/submissionApi";
+import toast from "react-hot-toast";
 
 const DIFFICULTY_STYLES = {
   EASY: "border-gray-400 text-gray-600 bg-white",
@@ -173,6 +174,19 @@ export default function SolveProblemPage() {
   }, [stopPolling]);
 
   const handleRun = async () => {
+    let payloadInput = customInput;
+
+    if (!payloadInput.trim()) {
+      if (problem?.testCases && problem.testCases.length > 0) {
+        payloadInput = problem.testCases[0].input;
+        setCustomInput(payloadInput);
+        toast.success("Running against Sample Test Case 1");
+      } else {
+        toast.error("Please provide custom input to run your code.");
+        return;
+      }
+    }
+
     stopPolling();
     setIsRunning(true);
     setRunResult(null);
@@ -186,7 +200,7 @@ export default function SolveProblemPage() {
         problemId: id,
         language,
         code,
-        customInput
+        customInput: payloadInput
       });
       setRunResult(res.data.data);
     } catch (err) {

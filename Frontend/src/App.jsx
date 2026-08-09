@@ -13,6 +13,7 @@ import UserProfilePage from "./pages/UserProfilePage";
 import LeaderboardPage from "./pages/LeaderboardPage";
 import ContestsPage from "./pages/ContestsPage";
 import ContestDetailPage from "./pages/ContestDetailPage";
+import ContestCreateProblemPage from "./pages/ContestCreateProblemPage";
 
 export default function App() {
   return (
@@ -75,8 +76,16 @@ export default function App() {
         <Route
           path="/create-problem"
           element={
-            <ProtectedRoute>
+            <AdminRoute>
               <CreateProblemPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/contests/:contestId/create-problem"
+          element={
+            <ProtectedRoute>
+              <ContestCreateProblemPage />
             </ProtectedRoute>
           }
         />

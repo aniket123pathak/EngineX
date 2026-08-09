@@ -31,7 +31,6 @@ const contestSchema = new Schema({
     },
     password: {
         type: String, 
-        // Only required if the contest is PRIVATE
         required: function() {
             return this.visibility === "PRIVATE";
         }

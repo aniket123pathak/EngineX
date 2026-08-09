@@ -19,10 +19,10 @@ async function sendSubmission(i) {
             },
             body: JSON.stringify(payload)
         });
-        
-        const timeTaken = Date.now() - start;
-        
-        if (response.ok) {
+
+                const timeTaken = Date.now() - start;
+
+                if (response.ok) {
             const data = await response.json();
             console.log(`✅ [Req ${i}] Finished in ${timeTaken}ms | Verdict: ${data.data?.verdict}`);
         } else {
@@ -35,13 +35,13 @@ async function sendSubmission(i) {
 
 async function runTest() {
     console.log(`\n🚀 FIRING ${NUM_REQUESTS} CONCURRENT SUBMISSIONS AT THE ENGINE...\n`);
-    
-    const requests = [];
+
+        const requests = [];
     for (let i = 1; i <= NUM_REQUESTS; i++) {
         requests.push(sendSubmission(i));
     }
-    
-    await Promise.all(requests);
+
+        await Promise.all(requests);
     console.log(`\n🏁 ALL ${NUM_REQUESTS} REQUESTS COMPLETED.`);
 }
 

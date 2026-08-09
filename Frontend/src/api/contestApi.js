@@ -20,6 +20,10 @@ export const addProblemToContest = (id, payload) => {
   return axiosInstance.post(`/contests/${id}/problems`, payload);
 };
 
+export const createProblemForContest = (id, payload) => {
+  return axiosInstance.post(`/contests/${id}/problems`, payload);
+};
+
 export const removeProblemFromContest = (id, problemId) => {
   return axiosInstance.delete(`/contests/${id}/problems/${problemId}`);
 };

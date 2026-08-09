@@ -36,7 +36,7 @@ export default function CreateContestModal({ isOpen, onClose, onSuccess }) {
       onSuccess();
       onClose();
     } catch (err) {
-      toast.error(err.response?.data?.message || "An error occurred");
+      toast.error(err.response?.data?.message || "Failed to create contest");
     } finally {
       setIsLoading(false);
     }

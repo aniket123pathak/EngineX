@@ -22,14 +22,14 @@ export const submitCode = asyncHandler(async (req, res) => {
     if (problem.author.toString() !== req.user._id.toString()) {
         if (problem.isPrivate || problem.publicAfter > new Date()) {
             const contest = await Contest.findOne({ problems: problemId });
-            
-            if (contest) {
+
+                        if (contest) {
                 const currentTime = new Date();
                 if (currentTime < contest.startTime) {
                     throw new ApiError(403, "You cannot submit code before the contest starts.");
                 }
-                
-                if (contest.visibility === "PRIVATE") {
+
+                                if (contest.visibility === "PRIVATE") {
                     const isRegistered = await ContestRegistration.findOne({
                         user: req.user._id,
                         contest: contest._id
@@ -87,7 +87,6 @@ export const runCode = asyncHandler(async (req, res) => {
     let timeLimit = 2000;
     let memoryLimit = 256;
 
-    // If they provided a problemId, grab the strict limits for that problem
     if (problemId) {
         const problem = await Problem.findById(problemId);
         if (problem) {
@@ -96,7 +95,6 @@ export const runCode = asyncHandler(async (req, res) => {
         }
     }
 
-    // Execute the code instantly (No Queue, No DB saves!)
     const result = await runCodeSnippet(code, language, customInput || "", timeLimit, memoryLimit);
 
     return res.status(200).json(

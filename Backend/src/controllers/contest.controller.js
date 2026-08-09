@@ -4,6 +4,8 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { Problem } from "../models/problem.model.js";
+import fs from "fs";
+import path from "path";
 
 export const createContest = asyncHandler(async (req, res) => {
     const { name, description, startTime, endTime, visibility, password } = req.body;
@@ -51,7 +53,7 @@ export const getAllContests = asyncHandler(async (req, res) => {
 
 export const registerForContest = asyncHandler(async (req, res) => {
     const { contestId } = req.params;
-    const { password } = req.body; // Needed if contest is PRIVATE
+    const { password } = req.body; 
 
     const contest = await Contest.findById(contestId);
     if (!contest) {
@@ -71,8 +73,8 @@ export const registerForContest = asyncHandler(async (req, res) => {
         if (!password) {
             throw new ApiError(400, "This is a private contest. Password is required.");
         }
-        
-        const isCorrect = await contest.isPasswordCorrect(password);
+
+                const isCorrect = await contest.isPasswordCorrect(password);
         if (!isCorrect) {
             throw new ApiError(401, "Incorrect contest password");
         }
@@ -88,62 +90,24 @@ export const registerForContest = asyncHandler(async (req, res) => {
     );
 });
 
-export const addProblemToContest = asyncHandler(async (req, res) => {
-    const { contestId } = req.params;
-    const { problemId } = req.body;
-
-    const contest = await Contest.findById(contestId);
-    const problem = await Problem.findById(problemId);
-
-    if (!contest || !problem) {
-        throw new ApiError(404, "Contest or Problem not found");
-    }
-
-    if (contest.author.toString() !== req.user._id.toString()) {
-        throw new ApiError(403, "You do not have permission to modify this contest. Only the author can add problems.");
-    }
-
-    if (contest.problems.length >= 10) {
-        throw new ApiError(400, "A contest can have a maximum of 10 problems.");
-    }
-
-    if (contest.problems.some(id => id.toString() === problemId.toString())) {
-        throw new ApiError(400, "This problem is already in the contest.");
-    }
-
-    // Push the problem and save
-    if (contest.visibility === "PUBLIC") {
-        problem.isPrivate = false;
-        problem.publicAfter = contest.endTime; 
-    } else {
-        problem.isPrivate = true;
-    }
-    
-    await problem.save(); 
-
-    contest.problems.push(problemId);
-    await contest.save();
-
-    return res.status(200).json(
-        new ApiResponse(200, contest, "Problem added and lifecycle configured")
-    );
-});
-
 export const getContest = asyncHandler(async (req, res) => {
     const { contestId } = req.params;
-    const userId = req.user._id;
+
+    const userId = req.user?._id;
 
     const contest = await Contest.findById(contestId)
         .populate("author", "username email")
-        .populate("problems", "title difficulty isGlobal");
+        .populate("problems", "title difficulty isPrivate");
 
     if (!contest) {
         throw new ApiError(404, "Contest not found");
     }
 
-    const isAuthor = contest.author._id.toString() === userId.toString();
+    const isAuthor = userId ? contest.author._id.toString() === userId.toString() : false;
 
     if (contest.visibility === "PRIVATE" && !isAuthor) {
+        if (!userId) throw new ApiError(401, "Please log in to view this contest.");
+
         const isRegistered = await ContestRegistration.findOne({
             user: userId,
             contest: contestId
@@ -164,6 +128,8 @@ export const getContest = asyncHandler(async (req, res) => {
 
     delete contestObject.password;
 
+    contestObject.isAuthor = isAuthor;
+
     return res.status(200).json(
         new ApiResponse(200, contestObject, "Contest details fetched successfully")
     );
@@ -173,8 +139,8 @@ export const removeProblemFromContest = asyncHandler(async (req, res) => {
     const { contestId, problemId } = req.params;
 
     const contest = await Contest.findById(contestId);
-    
-    if (!contest) {
+
+        if (!contest) {
         throw new ApiError(404, "Contest not found");
     }
 
@@ -190,5 +156,75 @@ export const removeProblemFromContest = asyncHandler(async (req, res) => {
 
     return res.status(200).json(
         new ApiResponse(200, contest, "Problem removed from contest")
+    );
+});
+
+export const createProblemForContest = asyncHandler(async (req, res) => {
+    const { contestId } = req.params;
+    const { title, description, difficulty, timeLimit, memoryLimit, testCases } = req.body;
+
+    if (!title || !description || !testCases || testCases.length === 0) {
+        throw new ApiError(400, "Title, description, and at least one test case are required");
+    }
+
+    const contest = await Contest.findById(contestId);
+    if (!contest) {
+        throw new ApiError(404, "Contest not found");
+    }
+
+    if (contest.author.toString() !== req.user._id.toString()) {
+        throw new ApiError(403, "You do not have permission to add problems to this contest.");
+    }
+
+    if (contest.problems.length >= 10) {
+        throw new ApiError(400, "A contest can have a maximum of 10 problems.");
+    }
+
+    const formattedTestCases = testCases.map(tc => ({
+        input: tc.input,
+        expectedOutput: tc.expectedOutput,
+        isHidden: tc.isHidden === true || tc.hidden === true
+    }));
+
+    let isPrivate = true;
+    let publicAfter = new Date("2099-12-31"); 
+
+    if (contest.visibility === "PUBLIC") {
+        isPrivate = false;
+        publicAfter = contest.endTime; 
+    }
+
+    const problem = await Problem.create({
+        title,
+        description,
+        difficulty,
+        timeLimit,
+        memoryLimit,
+        testCases: formattedTestCases,
+        author: req.user._id,
+        isPrivate,
+        publicAfter
+    });
+
+    try {
+        const problemFolder = path.resolve("problems", problem._id.toString());
+        if (!fs.existsSync(problemFolder)) {
+            fs.mkdirSync(problemFolder, { recursive: true });
+        }
+        testCases.forEach((tc, index) => {
+            const testCaseNumber = index + 1;
+            fs.writeFileSync(path.join(problemFolder, `${testCaseNumber}.in`), tc.input);
+            fs.writeFileSync(path.join(problemFolder, `${testCaseNumber}.out`), tc.expectedOutput);
+        });
+    } catch (error) {
+        await Problem.findByIdAndDelete(problem._id);
+        throw new ApiError(500, "Failed to write test cases to file system");
+    }
+
+    contest.problems.push(problem._id);
+    await contest.save();
+
+    return res.status(201).json(
+        new ApiResponse(201, { contest, problem }, "Problem securely created and linked to contest")
     );
 });

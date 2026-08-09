@@ -1,29 +1,12 @@
 import { useState } from "react";
-import { addProblemToContest, removeProblemFromContest } from "../api/contestApi";
+import { removeProblemFromContest } from "../api/contestApi";
+import { Link } from "react-router-dom";
 import toast from "react-hot-toast";
 
 export default function ManageContestModal({ isOpen, onClose, contestId, problems, onUpdate }) {
-  const [problemIdInput, setProblemIdInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   if (!isOpen) return null;
-
-  const handleAddProblem = async (e) => {
-    e.preventDefault();
-    if (!problemIdInput.trim()) return;
-
-    setIsLoading(true);
-    try {
-      await addProblemToContest(contestId, { problemId: problemIdInput.trim() });
-      toast.success("Problem added successfully");
-      setProblemIdInput("");
-      onUpdate();
-    } catch (err) {
-      toast.error(err.response?.data?.message || "An error occurred");
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleRemoveProblem = async (problemId) => {
     setIsLoading(true);
@@ -41,7 +24,7 @@ export default function ManageContestModal({ isOpen, onClose, contestId, problem
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
       <div className="w-full max-w-lg bg-white border-2 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col max-h-[85vh]">
-        {/* Header */}
+        {}
         <div className="flex justify-between items-center px-6 pt-6 pb-4 border-b-2 border-black bg-gray-100">
           <h2 className="text-2xl font-black uppercase tracking-tight">Manage Problems</h2>
           <button
@@ -53,46 +36,15 @@ export default function ManageContestModal({ isOpen, onClose, contestId, problem
         </div>
 
         <div className="p-6 flex flex-col gap-5 overflow-y-auto">
-          {/* Instructional banner */}
-          <div className="border-2 border-black bg-yellow-50 p-4">
-            <p className="text-sm font-bold text-black mb-1">
-              How to add problems
-            </p>
-            <p className="text-xs font-medium text-gray-700 leading-relaxed">
-              To add a custom problem, create it in the{" "}
-              <strong>Problem Sandbox</strong> first, then paste its unique
-              Problem ID here.
-            </p>
-            <a
-              href="/create-problem"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-3 inline-block border-2 border-black bg-black text-white px-4 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors hover:bg-white hover:text-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] no-underline"
-            >
-              ✦ Create Custom Problem
-            </a>
-          </div>
+          {}
+          <Link
+            to={`/contests/${contestId}/create-problem`}
+            className="block w-full text-center border-2 border-black bg-black text-white px-4 py-4 text-sm font-bold uppercase tracking-wide transition-all hover:bg-white hover:text-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] no-underline"
+          >
+            ✦ Create New Problem for Contest
+          </Link>
 
-          {/* Add problem form */}
-          <form onSubmit={handleAddProblem} className="flex gap-2">
-            <input
-              type="text"
-              placeholder="Paste Problem ID here"
-              value={problemIdInput}
-              onChange={(e) => setProblemIdInput(e.target.value)}
-              className="flex-1 border-2 border-black p-2 text-sm focus:outline-none transition-shadow focus:shadow-[4px_4px_0_0_#000]"
-              required
-            />
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="border-2 border-black bg-black text-white px-4 py-2 font-bold text-sm hover:bg-white hover:text-black transition-colors disabled:opacity-50 whitespace-nowrap shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
-            >
-              Add
-            </button>
-          </form>
-
-          {/* Current problems list */}
+          {}
           <div className="border-2 border-black bg-gray-50">
             <div className="border-b-2 border-black bg-gray-100 px-4 py-2">
               <h3 className="text-xs font-bold tracking-wide uppercase">
@@ -123,7 +75,7 @@ export default function ManageContestModal({ isOpen, onClose, contestId, problem
           </div>
         </div>
 
-        {/* Footer */}
+        {}
         <div className="flex justify-end gap-4 px-6 py-4 border-t-2 border-black">
           <button
             onClick={onClose}

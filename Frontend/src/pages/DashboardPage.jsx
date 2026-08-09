@@ -66,7 +66,7 @@ export default function DashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-4">
-          {user && (
+          {user?.role === "ADMIN" && (
             <button
               onClick={() => navigate("/create-problem")}
               className="cursor-pointer border-2 border-black bg-black px-4 py-1.5 text-sm font-bold text-white transition-colors hover:bg-white hover:text-black"

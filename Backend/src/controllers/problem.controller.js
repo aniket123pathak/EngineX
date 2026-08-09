@@ -8,21 +8,17 @@ import jwt from "jsonwebtoken";
 import fs from "fs";
 import path from "path";
 export const createProblem = asyncHandler(async (req, res) => {
-    const { title, description, difficulty, timeLimit, memoryLimit, testCases, isPrivate } = req.body;
-    
-    if (!title || !description || !testCases || testCases.length === 0) {
+    const { title, description, difficulty, timeLimit, memoryLimit, testCases } = req.body;
+
+        if (!title || !description || !testCases || testCases.length === 0) {
         throw new ApiError(400, "Title, description, and at least one test case are required");
-    }    
+    }
+
     const formattedTestCases = testCases.map(tc => ({
         input: tc.input,
         expectedOutput: tc.expectedOutput,
-        isHidden: tc.isHidden === true || tc.hidden === true // Catch both just in case!
+        isHidden: tc.isHidden === true || tc.hidden === true
     }));
-    let enforcePrivate = isPrivate === true; 
-    
-    if (req.user.role !== "ADMIN") {
-        enforcePrivate = true; 
-    }
 
     const problem = await Problem.create({
         title,
@@ -32,10 +28,11 @@ export const createProblem = asyncHandler(async (req, res) => {
         memoryLimit,
         testCases: formattedTestCases,
         author: req.user._id,
-        isPrivate: enforcePrivate, // Apply the secure flag
+        isPrivate: false, 
+        publicAfter: Date.now(), 
     });
 
-    try {
+        try {
         const problemFolder = path.resolve("problems", problem._id.toString());
         if (!fs.existsSync(problemFolder)) {
             fs.mkdirSync(problemFolder, { recursive: true });
@@ -49,8 +46,8 @@ export const createProblem = asyncHandler(async (req, res) => {
         await Problem.findByIdAndDelete(problem._id);
         throw new ApiError(500, "Failed to write test cases to file system");
     }
-    
-    return res.status(201).json(
+
+        return res.status(201).json(
         new ApiResponse(201, problem, "Problem created successfully")
     );
 });
@@ -66,8 +63,8 @@ export const getAllProblems = asyncHandler(async (req, res) => {
 });
 export const getProblemById = asyncHandler(async (req, res) => {
     const problemId = req.params.problemId || req.params.id;
-    
-    if (!problemId || problemId === "undefined") {
+
+        if (!problemId || problemId === "undefined") {
         throw new ApiError(400, "Invalid Problem ID received.");
     }
 
@@ -80,20 +77,17 @@ export const getProblemById = asyncHandler(async (req, res) => {
                 userId = decodedToken?._id;
             }
         } catch (error) {
-            // Ignore errors
         }
     }
 
-    // 1. REMOVE .select("-testCases") so we actually get the test cases from MongoDB
     const problem = await Problem.findById(problemId);
-    
-    if (!problem) {
+
+        if (!problem) {
         throw new ApiError(404, "Problem not found in the database.");
     }
 
     const isAuthor = userId && problem.author.toString() === userId.toString();
 
-    // SECURITY CHECK
     if (problem.isPrivate || problem.publicAfter > new Date()) {
         if (!userId) {
             throw new ApiError(401, "You must be logged in to view this private contest problem.");
@@ -103,8 +97,8 @@ export const getProblemById = asyncHandler(async (req, res) => {
 
         if (contest && !isAuthor) {
             const currentTime = new Date();
-            
-            if (currentTime < contest.startTime) {
+
+                        if (currentTime < contest.startTime) {
                 throw new ApiError(403, "This problem is locked until the contest begins.");
             }
 
@@ -122,11 +116,9 @@ export const getProblemById = asyncHandler(async (req, res) => {
         }
     }
 
-    // 2. THE SMART FILTER: Protect the hidden test cases!
     let sanitizedProblem = problem.toObject(); 
-    
-    if (!isAuthor && sanitizedProblem.testCases) {
-        // MATCH YOUR SCHEMA: Use tc.isHidden!
+
+        if (!isAuthor && sanitizedProblem.testCases) {
         sanitizedProblem.testCases = sanitizedProblem.testCases.filter(
             (tc) => tc.isHidden !== true && tc.isHidden !== "true"
         );

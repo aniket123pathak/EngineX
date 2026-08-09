@@ -80,7 +80,7 @@ export default function ContestDetailPage() {
     }
   };
 
-  // ─── Loading state ───
+  
   if (isLoading) {
     return (
       <div className="mx-auto max-w-5xl px-6 py-12">
@@ -89,7 +89,7 @@ export default function ContestDetailPage() {
     );
   }
 
-  // ─── 403 Locked Gate ───
+  
   if (isLocked) {
     return (
       <div className="mx-auto max-w-xl px-6 py-20">
@@ -101,7 +101,7 @@ export default function ContestDetailPage() {
         </Link>
 
         <div className="border-2 border-black bg-white shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
-          {/* Header bar */}
+          {}
           <div className="border-b-2 border-black bg-gray-100 px-6 py-4">
             <h1 className="text-2xl font-black uppercase tracking-tight">
               🔒 Private Contest
@@ -155,7 +155,7 @@ export default function ContestDetailPage() {
     );
   }
 
-  // ─── Contest not found (non-403 error) ───
+  
   if (!contest) {
     return (
       <div className="mx-auto max-w-5xl px-6 py-12">
@@ -166,12 +166,12 @@ export default function ContestDetailPage() {
     );
   }
 
-  const isAuthor = user && user._id === contest.author?._id;
+  const isAuthor = contest.isAuthor === true || (user && user._id === contest.author?._id);
   const hasStarted = new Date(contest.startTime) <= new Date();
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-12">
-      {/* Header Section */}
+      {}
       <div className="border-2 border-black bg-white p-8 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] mb-10 relative">
         <div className="flex justify-between items-start mb-6">
           <div>
@@ -200,7 +200,7 @@ export default function ContestDetailPage() {
         </div>
       </div>
 
-      {/* Countdown Timer */}
+      {}
       {!hasStarted && (
         <div className="border-2 border-black bg-yellow-100 p-6 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] mb-10 text-center">
           <h2 className="text-xl font-black uppercase mb-2 text-yellow-900">Contest Starts In</h2>
@@ -208,11 +208,11 @@ export default function ContestDetailPage() {
         </div>
       )}
 
-      {/* Problems Section */}
+      {}
       <div>
         <h2 className="text-3xl font-black uppercase tracking-tight mb-6">Problems</h2>
         
-        {!hasStarted ? (
+        {(!hasStarted && !isAuthor) ? (
           <div className="border-2 border-black border-dashed p-12 text-center bg-gray-50">
             <p className="font-bold text-gray-500 text-lg">Problems will be revealed when the contest starts. Stay tuned!</p>
           </div>
