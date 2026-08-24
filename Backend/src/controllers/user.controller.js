@@ -20,15 +20,15 @@ const generateAccessAndRefreshTokens = async (userId) => {
 };
 export const registerUser = asyncHandler(async (req, res) => {
     const { username, email, password } = req.body;
-    if (
-        [username, email, password].some((field) => field?.trim() === "")
-    ) {
+    // .some returns true if true if any one of the field is true
+    // and if any value is trur then it enters the if block and throws the api error
+    if([username, email, password].some((field) => field?.trim() === "")){
         throw new ApiError(400, "All fields (username, email, password) are required");
     }
     const existedUser = await User.findOne({
         $or: [{ username }, { email }]
     });
-    if (existedUser) {
+    if(existedUser){
         throw new ApiError(409, "A user with this email or username already exists");
     }
     const user = await User.create({
@@ -37,7 +37,7 @@ export const registerUser = asyncHandler(async (req, res) => {
         password, 
     });
     const createdUser = await User.findById(user._id).select("-password -refreshToken");
-    if (!createdUser) {
+    if(!createdUser){
         throw new ApiError(500, "Something went wrong while registering the user in the database");
     }
     return res.status(201).json(
